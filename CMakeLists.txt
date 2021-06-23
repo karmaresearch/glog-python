@@ -38,7 +38,8 @@ find_package(ZLIB REQUIRED)
 
 #Trident
 IF(GLOG_LIB)
-    message("Using GLog provided installation: ${KOGNAC_LIB} ${KOGNAC_INC}")
+    message("Using KOGNAC provided installation: ${KOGNAC_LIB} ${KOGNAC_INC}")
+
     include_directories(${KOGNAC_INC})
     LINK_DIRECTORIES("${KOGNAC_LIB}")
     add_library(kognac-core SHARED IMPORTED)
@@ -48,21 +49,21 @@ IF(GLOG_LIB)
     include_directories(${TRIDENT_INC})
     include_directories(${TRIDENT_INC}/layers)
     include_directories(${TRIDENT_INC}/../rdf3x/include)
-    add_library(trident SHARED IMPORTED)
-    set_property(TARGET trident PROPERTY IMPORTED_LOCATION ${TRIDENT_LIB}/libtrident-core${CMAKE_SHARED_LIBRARY_SUFFIX})
+    add_library(trident-core SHARED IMPORTED)
+    set_property(TARGET trident-core PROPERTY IMPORTED_LOCATION ${TRIDENT_LIB}/${CMAKE_SHARED_LIBRARY_PREFIX}trident-core${CMAKE_SHARED_LIBRARY_SUFFIX})
     add_library(trident-sparql SHARED IMPORTED)
-    set_property(TARGET trident-sparql PROPERTY IMPORTED_LOCATION ${TRIDENT_LIB}/libtrident-sparql${CMAKE_SHARED_LIBRARY_SUFFIX})
+    set_property(TARGET trident-sparql PROPERTY IMPORTED_LOCATION ${TRIDENT_LIB}/${CMAKE_SHARED_LIBRARY_PREFIX}trident-sparql${CMAKE_SHARED_LIBRARY_SUFFIX})
     LINK_DIRECTORIES("${TRIDENT_LIB}/")
 
     message("Using GLog provided installation: ${GLOG_LIB} ${GLOG_INC}")
-    include_directories(${GLOG_INC}/include)
+    include_directories(${GLOG_INC})
     add_library(glog-core SHARED IMPORTED)
-    set_property(TARGET glog-core PROPERTY IMPORTED_LOCATION ${GLOG_LIB}/libglog-core${CMAKE_SHARED_LIBRARY_SUFFIX})
+    set_property(TARGET glog-core PROPERTY IMPORTED_LOCATION ${GLOG_LIB}/${CMAKE_SHARED_LIBRARY_PREFIX}vlog-core${CMAKE_SHARED_LIBRARY_SUFFIX})
     LINK_DIRECTORIES("${GLOG_LIB}/")
 
 ELSE()
     ExternalProject_Add(git-glog
-        DOWNLOAD_COMMAND git clone -b prob https://github.com/karmaresearch/glog.git
+        DOWNLOAD_COMMAND git clone https://github.com/karmaresearch/glog.git
         DOWNLOAD_DIR .
         SOURCE_DIR glog
         BUILD_IN_SOURCE 1

@@ -25,9 +25,7 @@
 #include <vector>
 
 #include <vlog/wizard.h>
-#include <python/glog.h>
-
-#include <python/glog.h>
+#include <glog-python/glog.h>
 
 /*** Methods ***/
 static PyObject * wizard_new(PyTypeObject *type, PyObject *args, PyObject *kwds);

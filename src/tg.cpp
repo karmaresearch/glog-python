@@ -24,8 +24,7 @@
 #include <iostream>
 #include <vector>
 
-#include <python/glog.h>
-
+#include <glog-python/glog.h>
 #include <vlog/exporter.h>
 
 /*** Methods ***/
