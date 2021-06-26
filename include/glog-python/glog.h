@@ -60,13 +60,23 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
         GBGraph *g;
-        glog_Reasoner *reasoner;
+    glog_Reasoner *reasoner;
 } glog_TG;
 
 typedef struct {
     PyObject_HEAD
         glog_TG *g;
-        std::shared_ptr<GBQuerier> q;
+    std::shared_ptr<GBQuerier> q;
 } glog_Querier;
+
+typedef struct {
+    PyObject_HEAD
+        std::shared_ptr<const TGSegment> data;
+    size_t nodeId;
+    size_t ruleIdx;
+    size_t step;
+    PredId_t predId;
+    std::vector<std::vector<size_t>> nodes;
+} glog_TupleSet;
 
 #endif

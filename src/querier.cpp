@@ -31,15 +31,19 @@ static PyObject * querier_new(PyTypeObject *type, PyObject *args, PyObject *kwds
 static int querier_init(glog_Querier *self, PyObject *args, PyObject *kwds);
 static void querier_dealloc(glog_Querier* self);
 static PyObject* querier_get_derivation_tree(PyObject* self, PyObject *args);
+static PyObject* querier_get_derivation_tree_in_TupleSet(PyObject* self, PyObject *args);
 static PyObject* querier_get_list_predicates(PyObject* self, PyObject *args);
 static PyObject* querier_get_node_details_predicate(PyObject* self, PyObject *args);
-static PyObject* querier_get_node_facts(PyObject* self, PyObject *args);
+static PyObject* querier_get_facts_in_TG_node(PyObject* self, PyObject *args);
+static PyObject* querier_get_fact_in_TupleSet(PyObject* self, PyObject *args);
 
 static PyMethodDef Querier_methods[] = {
     {"get_derivation_tree", querier_get_derivation_tree, METH_VARARGS, "Get derivation tree of a fact." },
+    {"get_derivation_tree_in_TupleSet", querier_get_derivation_tree_in_TupleSet, METH_VARARGS, "Get derivation tree of a fact in a given TupleSet." },
     {"get_list_predicates", querier_get_list_predicates, METH_VARARGS, "Get list predicates stored in the TG." },
     {"get_node_details_predicate", querier_get_node_details_predicate, METH_VARARGS, "Get the nodes for a given predicate." },
-    {"get_node_facts", querier_get_node_facts, METH_VARARGS, "Get the facts stored on a given node." },
+    {"get_facts_in_TG_node", querier_get_facts_in_TG_node, METH_VARARGS, "Get the facts stored on a node in the TG." },
+    {"get_fact_in_TupleSet", querier_get_fact_in_TupleSet, METH_VARARGS, "Get the fact stored on a given TupleSet." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -127,6 +131,31 @@ static PyObject* querier_get_derivation_tree(PyObject* self, PyObject *args) {
     return PyUnicode_FromString(sOut.c_str());
 }
 
+static PyObject* querier_get_derivation_tree_in_TupleSet(PyObject* self,
+        PyObject *args) {
+    PyObject *node;
+    size_t factId = 0;
+    if (!PyArg_ParseTuple(args, "Ol", &node, &factId)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    glog_Querier *s = ((glog_Querier*)self);
+    glog_TupleSet* n = (glog_TupleSet*)node;
+    auto &ie = n->nodes[factId];
+
+    auto out = s->q->getDerivationTree(n->data,
+            n->nodeId,
+            factId,
+            n->predId,
+            n->ruleIdx,
+            n->step,
+            ie);
+    std::stringstream ssOut;
+    JSON::write(ssOut, out);
+    std::string sOut = ssOut.str();
+    return PyUnicode_FromString(sOut.c_str());
+}
+
 static PyObject* querier_get_list_predicates(PyObject* self, PyObject *args) {
     glog_Querier *s = (glog_Querier*)self;
     PyObject *obj = PyList_New(0);
@@ -154,7 +183,7 @@ static PyObject* querier_get_node_details_predicate(PyObject* self, PyObject *ar
     return PyUnicode_FromString(sOut.c_str());
 }
 
-static PyObject* querier_get_node_facts(PyObject* self, PyObject *args) {
+static PyObject* querier_get_facts_in_TG_node(PyObject* self, PyObject *args) {
     size_t nodeId;
     if (!PyArg_ParseTuple(args, "l", &nodeId)) {
         Py_INCREF(Py_None);
@@ -165,4 +194,31 @@ static PyObject* querier_get_node_facts(PyObject* self, PyObject *args) {
     JSON::write(ssOut, out);
     std::string sOut = ssOut.str();
     return PyUnicode_FromString(sOut.c_str());
+}
+
+static PyObject* querier_get_fact_in_TupleSet(PyObject* self, PyObject *args) {
+    PyObject *tupleSetObj = NULL;
+    size_t factId = 0;
+    if (!PyArg_ParseTuple(args, "Ol", &tupleSetObj, &factId)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    auto s = ((glog_Querier*)self);
+    auto ts = ((glog_TupleSet*)tupleSetObj);
+    if (factId >= ts->data->getNRows()) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    } else {
+        auto n_columns = ts->data->getNColumns();
+        PyObject *outObj = PyList_New(0);
+        for(size_t i = 0; i < n_columns; ++i) {
+            Term_t c = ts->data->getValueAtRow(factId, i);
+            //Convert into text
+            std::string sTerm = s->q->getTermText(c);
+            auto sTermObj = PyUnicode_FromString(sTerm.c_str());
+            PyList_Append(outObj, sTermObj);
+            Py_DECREF(sTermObj);
+        }
+        return outObj;
+    }
 }

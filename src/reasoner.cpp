@@ -26,6 +26,7 @@
 
 #include <glog-python/glog.h>
 #include <vlog/reasoner.h>
+#include <vlog/utils.h>
 #include <kognac/utils.h>
 
 /*** Methods ***/
@@ -33,10 +34,12 @@ static PyObject * reasoner_new(PyTypeObject *type, PyObject *args, PyObject *kwd
 static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds);
 static void reasoner_dealloc(glog_Reasoner* self);
 static PyObject *reasoner_create_model(PyObject *self, PyObject *args, PyObject *kwds);
+static PyObject *reasoner_execute_rule(PyObject *self, PyObject *args, PyObject *kwds);
 static PyObject *reasoner_get_TG(PyObject *self, PyObject *args);
 
 static PyMethodDef Reasoner_methods[] = {
     {"create_model", (PyCFunction)reasoner_create_model, METH_VARARGS | METH_KEYWORDS, "Create a model." },
+    {"execute_rule", (PyCFunction)reasoner_execute_rule, METH_VARARGS | METH_KEYWORDS, "Execute a rule." },
     {"get_TG", reasoner_get_TG, METH_VARARGS, "Get the TG associated with the model." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
@@ -83,13 +86,15 @@ PyTypeObject glog_ReasonerType = {
     reasoner_new,                 /* tp_new */
 };
 
-static PyObject * reasoner_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+static PyObject * reasoner_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
     glog_Reasoner *self;
     self = (glog_Reasoner*)type->tp_alloc(type, 0);
     return (PyObject *)self;
 }
 
-static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
+static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds)
+{
     //Params and default values
     const char *typeChase = NULL;
     PyObject *edbLayer = NULL;
@@ -188,7 +193,8 @@ static int reasoner_init(glog_Reasoner *self, PyObject *args, PyObject *kwds) {
     return 0;
 }
 
-static void reasoner_dealloc(glog_Reasoner* self) {
+static void reasoner_dealloc(glog_Reasoner* self)
+{
     if (self->e != NULL) {
         Py_DECREF(self->e);
     }
@@ -198,8 +204,8 @@ static void reasoner_dealloc(glog_Reasoner* self) {
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-static PyObject *reasoner_create_model(PyObject *self, PyObject *args, PyObject *kw) {
-
+static PyObject *reasoner_create_model(PyObject *self, PyObject *args, PyObject *kw)
+{
     size_t startStep = 0;
     size_t maxStep = ~0ul;
     static char *kwlist[] = {(char*)"startStep", (char*)"maxStep", NULL};
@@ -227,10 +233,81 @@ static PyObject *reasoner_create_model(PyObject *self, PyObject *args, PyObject 
     out.put("n_triggers", s->sn->getNTriggers());
     out.put("n_derivations", s->sn->getNDerivedFacts());
     out.put("steps", s->sn->getNSteps());
+    out.put("max_mem_mb", Utils::get_max_mem());
     out.put("runtime_ms", secMat.count() * 1000);
     JSON::write(ssOut, out);
     std::string sOut = ssOut.str();
     return PyUnicode_FromString(sOut.c_str());
+}
+
+extern PyTypeObject glog_TupleSetType;
+static PyObject *reasoner_execute_rule(PyObject *self, PyObject *args, PyObject *kwds)
+{
+    size_t ruleIdx = 0;
+    if (!PyArg_ParseTuple(args, "l", &ruleIdx)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    glog_Reasoner *s = (glog_Reasoner*)self;
+    std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+    std::vector<GBRuleOutput> out = s->sn->executeRule(ruleIdx);
+    std::chrono::duration<double> dur = std::chrono::system_clock::now() - start;
+    if (out.empty()) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    } else {
+        assert(out.size() == 1);
+        auto arglist = Py_BuildValue("()");
+        PyObject *obj = PyObject_CallObject((PyObject *) &glog_TupleSetType, arglist);
+        glog_TupleSet *tupleset = (glog_TupleSet *)obj;
+        tupleset->ruleIdx = ruleIdx;
+        tupleset->data = out[0].segment;
+        tupleset->nodeId = ~0ul;
+        tupleset->step = ~0ul;
+        const Rule &rule = s->program->program->getRule(ruleIdx);
+        auto &heads = rule.getHeads();
+        tupleset->predId = heads[0].getPredicate().getId();
+
+        auto& inNodes = out[0].nodes;
+        size_t nnodes = inNodes.size();
+        if (nnodes == 0) {
+            LOG(ERRORL) << "The number of nodes must be > 0";
+        }
+        std::vector<std::unique_ptr<ColumnReader>> readers;
+        for(size_t i = 0; i < nnodes; ++i) {
+            readers.push_back(inNodes[i]->getReader());
+        }
+        //Prepare the nodes
+        tupleset->nodes.resize(nnodes);
+        while(readers[0]->hasNext()) {
+            for(size_t j = 1; j < nnodes; ++j) {
+                if (!readers[j]->hasNext()) {
+                    throw 10;
+                }
+            }
+            for(size_t j = 0; j < nnodes; ++j) {
+                tupleset->nodes[j].push_back(readers[j]->next());
+            }
+        }
+
+        PyObject *outObj = PyList_New(0);
+        PyList_Append(outObj, obj);
+        Py_DECREF(obj);
+
+        //Statistics
+        PyObject *stats = PyDict_New();
+        assert(stats != NULL);
+        int resp = PyDict_SetItem(stats, PyUnicode_FromString("n_answers"),
+                PyLong_FromLong(out[0].segment->getNRows()));
+        assert(resp == 0);
+        resp = PyDict_SetItem(stats, PyUnicode_FromString("runtime_ms"),
+                PyFloat_FromDouble(dur.count() * 1000));
+        assert(resp == 0);
+
+        PyList_Append(outObj, stats);
+        Py_DECREF(stats);
+        return outObj;
+    }
 }
 
 extern PyTypeObject glog_TGType;

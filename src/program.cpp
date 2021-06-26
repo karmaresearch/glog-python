@@ -34,12 +34,14 @@ static void program_dealloc(glog_Program* self);
 static PyObject* program_load_from_file(PyObject* self, PyObject *args);
 static PyObject* program_get_n_rules(PyObject* self, PyObject *args);
 static PyObject* program_get_rule(PyObject* self, PyObject *args);
+static PyObject* program_add_rule(PyObject* self, PyObject *args);
 static PyObject* program_get_predicate_name(PyObject* self, PyObject *args);
 
 static PyMethodDef Program_methods[] = {
     {"load_from_file", program_load_from_file, METH_VARARGS, "Load rules from file." },
     {"get_n_rules", program_get_n_rules, METH_VARARGS, "Return n rules." },
     {"get_rule", program_get_rule, METH_VARARGS, "Get rules." },
+    {"add_rule", program_add_rule, METH_VARARGS, "Add a rule." },
     {"get_predicate_name", program_get_predicate_name, METH_VARARGS, "Get name predicate." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
@@ -86,7 +88,8 @@ PyTypeObject glog_ProgramType = {
     program_new,                 /* tp_new */
 };
 
-static PyObject * program_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+static PyObject * program_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
     glog_Program *self;
     self = (glog_Program*)type->tp_alloc(type, 0);
     self->e = NULL;
@@ -94,7 +97,8 @@ static PyObject * program_new(PyTypeObject *type, PyObject *args, PyObject *kwds
     return (PyObject *)self;
 }
 
-static int program_init(glog_Program *self, PyObject *args, PyObject *kwds) {
+static int program_init(glog_Program *self, PyObject *args, PyObject *kwds)
+{
     PyObject *arg = NULL;
     if (!PyArg_ParseTuple(args, "O", &arg))
         return -1;
@@ -108,14 +112,16 @@ static int program_init(glog_Program *self, PyObject *args, PyObject *kwds) {
     return 0;
 }
 
-static void program_dealloc(glog_Program* self) {
+static void program_dealloc(glog_Program* self)
+{
     if (self->program) {
         Py_DECREF(self->e);
     }
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
-static PyObject* program_load_from_file(PyObject *self, PyObject *args) {
+static PyObject* program_load_from_file(PyObject *self, PyObject *args)
+{
     const char *path = NULL;
     if (PyArg_ParseTuple(args, "|s", &path)) {
         ((glog_Program*)self)->program->readFromFile(std::string(path));
@@ -124,12 +130,14 @@ static PyObject* program_load_from_file(PyObject *self, PyObject *args) {
     return Py_None;
 }
 
-static PyObject* program_get_n_rules(PyObject* self, PyObject *args) {
+static PyObject* program_get_n_rules(PyObject* self, PyObject *args)
+{
     auto nrules = ((glog_Program*)self)->program->getNRules();
     return PyLong_FromLong(nrules);
 }
 
-static PyObject* program_get_rule(PyObject* self, PyObject *args) {
+static PyObject* program_get_rule(PyObject* self, PyObject *args)
+{
     size_t ruleIdx = 0;
     if (PyArg_ParseTuple(args, "i", &ruleIdx)) {
         //Get the rule
@@ -137,6 +145,23 @@ static PyObject* program_get_rule(PyObject* self, PyObject *args) {
         std::string sRule = rule.toprettystring(((glog_Program*)self)->program.get(),
                 ((glog_Program*)self)->e->e);
         return PyUnicode_FromStringAndSize(sRule.c_str(), sRule.size());
+    }
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject* program_add_rule(PyObject* self, PyObject *args)
+{
+    const char *rule = NULL;
+    if (PyArg_ParseTuple(args, "|s", &rule)) {
+        auto ruleId = ((glog_Program*)self)->program->getNRules();
+        auto out = ((glog_Program*)self)->program->parseRule(
+                std::string(rule), false);
+        if (out == "") {
+            return PyLong_FromLong(ruleId);
+        } else {
+            return PyUnicode_FromString(out.c_str());
+        }
     }
     Py_INCREF(Py_None);
     return Py_None;
