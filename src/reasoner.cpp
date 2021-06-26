@@ -278,15 +278,15 @@ static PyObject *reasoner_execute_rule(PyObject *self, PyObject *args, PyObject 
             readers.push_back(inNodes[i]->getReader());
         }
         //Prepare the nodes
-        tupleset->nodes.resize(nnodes);
         while(readers[0]->hasNext()) {
             for(size_t j = 1; j < nnodes; ++j) {
                 if (!readers[j]->hasNext()) {
                     throw 10;
                 }
             }
+            tupleset->nodes.emplace_back();
             for(size_t j = 0; j < nnodes; ++j) {
-                tupleset->nodes[j].push_back(readers[j]->next());
+                tupleset->nodes.back().push_back(readers[j]->next());
             }
         }
 

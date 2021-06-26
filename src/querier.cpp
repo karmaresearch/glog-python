@@ -141,8 +141,11 @@ static PyObject* querier_get_derivation_tree_in_TupleSet(PyObject* self,
     }
     glog_Querier *s = ((glog_Querier*)self);
     glog_TupleSet* n = (glog_TupleSet*)node;
+    if (factId >= n->data->getNRows()) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
     auto &ie = n->nodes[factId];
-
     auto out = s->q->getDerivationTree(n->data,
             n->nodeId,
             factId,
