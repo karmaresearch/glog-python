@@ -259,7 +259,7 @@ static PyObject *reasoner_execute_rule(PyObject *self, PyObject *args, PyObject 
         assert(out.size() == 1);
         auto arglist = Py_BuildValue("()");
         PyObject *obj = PyObject_CallObject((PyObject *) &glog_TupleSetType, arglist);
-        glog_TupleSet *tupleset = (glog_TupleSet *)obj;
+        glog_TupleSet *tupleset = (glog_TupleSet *) obj;
         tupleset->ruleIdx = ruleIdx;
         tupleset->data = out[0].segment;
         tupleset->nodeId = ~0ul;
@@ -271,22 +271,34 @@ static PyObject *reasoner_execute_rule(PyObject *self, PyObject *args, PyObject 
         auto& inNodes = out[0].nodes;
         size_t nnodes = inNodes.size();
         if (nnodes == 0) {
-            LOG(ERRORL) << "The number of nodes must be > 0";
-        }
-        std::vector<std::unique_ptr<ColumnReader>> readers;
-        for(size_t i = 0; i < nnodes; ++i) {
-            readers.push_back(inNodes[i]->getReader());
-        }
-        //Prepare the nodes
-        while(readers[0]->hasNext()) {
-            for(size_t j = 1; j < nnodes; ++j) {
-                if (!readers[j]->hasNext()) {
-                    throw 10;
+            auto body = rule.getBody();
+            if (body.size() > 1) {
+                LOG(ERRORL) << "The number of nodes must be > 0";
+                throw 10;
+            } else if (body[0].getPredicate().getType() != EDB) {
+                auto itr = tupleset->data->iterator();
+                while (itr->hasNext()) {
+                    itr->next();
+                    tupleset->nodes.emplace_back();
+                    tupleset->nodes.back().push_back(itr->getNodeId());
                 }
             }
-            tupleset->nodes.emplace_back();
-            for(size_t j = 0; j < nnodes; ++j) {
-                tupleset->nodes.back().push_back(readers[j]->next());
+        } else {
+            std::vector<std::unique_ptr<ColumnReader>> readers;
+            for(size_t i = 0; i < nnodes; ++i) {
+                readers.push_back(inNodes[i]->getReader());
+            }
+            //Prepare the nodes
+            while(readers[0]->hasNext()) {
+                for(size_t j = 1; j < nnodes; ++j) {
+                    if (!readers[j]->hasNext()) {
+                        throw 10;
+                    }
+                }
+                tupleset->nodes.emplace_back();
+                for(size_t j = 0; j < nnodes; ++j) {
+                    tupleset->nodes.back().push_back(readers[j]->next());
+                }
             }
         }
 
