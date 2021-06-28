@@ -30,10 +30,12 @@
 /*** Methods ***/
 static PyObject * edblayer_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static int edblayer_init(glog_EDBLayer *self, PyObject *args, PyObject *kwds);
+static PyObject* edblayer_add_source(PyObject* self, PyObject *args);
 static void edblayer_dealloc(glog_EDBLayer* self);
 
 
 static PyMethodDef EDBLayer_methods[] = {
+    {"add_source", edblayer_add_source, METH_VARARGS, "Add a new source associated to an EDB predicate." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -79,7 +81,8 @@ PyTypeObject glog_EDBLayerType = {
     edblayer_new,                 /* tp_new */
 };
 
-static PyObject * edblayer_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+static PyObject * edblayer_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
     glog_EDBLayer *self;
     self = (glog_EDBLayer*)type->tp_alloc(type, 0);
     self->conf = NULL;
@@ -87,7 +90,8 @@ static PyObject * edblayer_new(PyTypeObject *type, PyObject *args, PyObject *kwd
     return (PyObject *)self;
 }
 
-static int edblayer_init(glog_EDBLayer *self, PyObject *args, PyObject *kwds) {
+static int edblayer_init(glog_EDBLayer *self, PyObject *args, PyObject *kwds)
+{
     const char *path = NULL;
     if (!PyArg_ParseTuple(args, "|s", &path))
         return -1;
@@ -102,7 +106,16 @@ static int edblayer_init(glog_EDBLayer *self, PyObject *args, PyObject *kwds) {
     return 0;
 }
 
-static void edblayer_dealloc(glog_EDBLayer* self) {
+static PyObject* edblayer_add_source(PyObject* self, PyObject *args)
+{
+    //TODO:
+    LOG(ERRORL) << "Not implemented";
+    throw 10;
+}
+
+
+static void edblayer_dealloc(glog_EDBLayer* self)
+{
     if (self->e)
         delete self->e;
     if (self->conf)

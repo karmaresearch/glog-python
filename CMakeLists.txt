@@ -30,7 +30,7 @@ endif()
 
 #add files to compile
 file(GLOB main_SRC
-    "src/*.cpp"
+    "src/cplusplus/*.cpp"
     )
 
 #ZLIB
@@ -86,6 +86,7 @@ ELSE()
     add_library(trident-core SHARED IMPORTED)
     add_dependencies(trident-core kognac-core)
     include_directories(${SOURCE_DIR}/trident/include)
+    include_directories(${SOURCE_DIR}/trident/rdf3x/include)
     set_property(TARGET trident-core PROPERTY IMPORTED_LOCATION "${TRIDENT_LIB}/${CMAKE_SHARED_LIBRARY_PREFIX}trident-core${CMAKE_SHARED_LIBRARY_SUFFIX}")
     LINK_DIRECTORIES("${TRIDENT_LIB}")
 
