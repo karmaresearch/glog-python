@@ -25,6 +25,7 @@
 #include <vector>
 
 #include <glog-python/glog.h>
+#include <glog-python/pyedbtable.h>
 #include <kognac/utils.h>
 
 /*** Methods ***/
@@ -108,11 +109,23 @@ static int edblayer_init(glog_EDBLayer *self, PyObject *args, PyObject *kwds)
 
 static PyObject* edblayer_add_source(PyObject* self, PyObject *args)
 {
-    //TODO:
-    LOG(ERRORL) << "Not implemented";
-    throw 10;
+    glog_EDBLayer *s = (glog_EDBLayer*)self;
+    const char *predName = NULL;
+    const char *dictPredName = NULL;
+    PyObject *obj = NULL;
+    if (!PyArg_ParseTuple(args, "sOs", &predName, &obj, &dictPredName)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    std::string sPredName(predName);
+    auto predId = s->e->addEDBPredicate(sPredName);
+    std::shared_ptr<EDBTable> ptr = std::shared_ptr<EDBTable>(
+            new PyTable(predId, sPredName, s->e,
+                std::string(dictPredName), obj));
+    s->e->addEDBTable(predId, "PYTHON", ptr);
+    Py_INCREF(Py_None);
+    return Py_None;
 }
-
 
 static void edblayer_dealloc(glog_EDBLayer* self)
 {

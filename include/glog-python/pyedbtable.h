@@ -9,12 +9,18 @@
 #include <unordered_map>
 #include <Python.h>
 
-class PyTable : public EDBTable {
+class PyTable : public EDBTable
+{
     private:
         const PredId_t predid;
         EDBLayer *layer;
         std::shared_ptr<EDBTable> dictTable;
         PyObject *obj;
+        PyObject *termClass;
+        PyObject *moduleName;
+        PyObject *mod;
+
+        PyObject *convertLiteralIntoPyTuple(const Literal &lit);
 
     public:
 
