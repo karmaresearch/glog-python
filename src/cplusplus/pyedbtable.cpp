@@ -1,4 +1,5 @@
 #include <glog-python/pyedbtable.h>
+#include <glog-python/pyedbitr.h>
 
 #include <vlog/concepts.h>
 #include <string>
@@ -12,11 +13,12 @@ PyTable::PyTable(PredId_t predid,
 {
     Py_INCREF(obj);
     this->obj = obj;
-    this->moduleName = PyUnicode_FromString("glog");
+    this->moduleName = PyUnicode_FromString("pyterm");
     this->mod = PyImport_Import(moduleName);
-    this->termClass = PyDict_GetItemString(this->mod, "PyTerm");
+    this->termClass = PyObject_GetAttrString(this->mod, "PyTerm");
     auto dictPredId = layer->getPredID(dictPredName);
     this->dictTable = layer->getEDBTable(dictPredId);
+    this->sortedItrMethod = PyUnicode_FromString("get_sorted_iterator");
 }
 
 uint8_t PyTable::getArity() const
@@ -74,15 +76,28 @@ size_t PyTable::getCardinality(const Literal &query)
 
 EDBIterator *PyTable::getIterator(const Literal &query)
 {
-    LOG(ERRORL) << "Method not implemented";
-    throw 10;
+    std::vector<uint8_t> fields;
+    return getSortedIterator(query, fields);
 }
 
 EDBIterator *PyTable::getSortedIterator(const Literal &query,
         const std::vector<uint8_t> &fields)
 {
-    LOG(ERRORL) << "Method not implemented";
-    throw 10;
+    EDBIterator *itr = NULL;
+    auto argFields = PyTuple_New(fields.size());
+    for(size_t i = 0; i < fields.size(); ++i)
+    {
+        PyTuple_SetItem(argFields, i, PyLong_FromLong(fields[i]));
+    }
+    auto pQuery = convertLiteralIntoPyTuple(query);
+    auto resp = PyObject_CallMethodObjArgs(this->obj, sortedItrMethod, pQuery, argFields, NULL);
+    Py_DECREF(sortedItrMethod);
+    if (resp != NULL) {
+        itr = new PyEDBIterator(predid, resp, dictTable);
+    }
+    Py_DECREF(argFields);
+    Py_DECREF(pQuery);
+    return itr;
 }
 
 bool PyTable::getDictNumber(const char *text, const size_t sizeText,
@@ -172,5 +187,10 @@ PyTable::~PyTable()
     {
         Py_DECREF(this->termClass);
         this->termClass = NULL;
+    }
+    if (this->sortedItrMethod != NULL)
+    {
+        Py_DECREF(this->sortedItrMethod);
+        this->sortedItrMethod = NULL;
     }
 }

@@ -19,6 +19,7 @@ class PyTable : public EDBTable
         PyObject *termClass;
         PyObject *moduleName;
         PyObject *mod;
+        PyObject *sortedItrMethod;
 
         PyObject *convertLiteralIntoPyTuple(const Literal &lit);
 

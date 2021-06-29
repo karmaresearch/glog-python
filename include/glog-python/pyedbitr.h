@@ -13,6 +13,7 @@ class PyEDBIterator : public EDBIterator
     private:
         const PredId_t predid;
         PyObject *obj;
+        PyObject *getTermMethod;
         std::shared_ptr<EDBTable> dictTable;
 
     public:

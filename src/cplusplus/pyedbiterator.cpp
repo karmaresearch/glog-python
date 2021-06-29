@@ -5,6 +5,7 @@ PyEDBIterator::PyEDBIterator(PredId_t predid, PyObject *obj,
 {
     this->obj = obj;
     this->dictTable = dictTable;
+    this->getTermMethod = PyUnicode_FromString("get_term_at_pos");
 }
 
 bool PyEDBIterator::hasNext()
@@ -21,13 +22,18 @@ void PyEDBIterator::next()
 
 Term_t PyEDBIterator::getElementAt(const uint8_t p)
 {
-    auto arg = Py_BuildValue("(i)", p);
-    auto sTerm = PyObject_CallMethod(this->obj, "get_term_at_pos", "(i)", arg);
+    auto sTerm = PyObject_CallMethodObjArgs(this->obj, this->getTermMethod, PyLong_FromLong(p), NULL);
+    Py_DECREF(this->getTermMethod);
+
     //Translate PyTerm into a Term_t
-    Py_ssize_t size;
+    Py_ssize_t size = 0;
     const char *ptr = PyUnicode_AsUTF8AndSize(sTerm, &size);
+    LOG(DEBUGL) << "Retrieved " << std::string(ptr, size);
     Term_t id = 0;
-    dictTable->getDictNumber(ptr, size, id);
+    bool resp = dictTable->getDictNumber(ptr, size, id);
+    assert(resp);
+    LOG(DEBUGL) << "Got ID=" << id;
+
     return id;
 }
 
