@@ -111,17 +111,15 @@ static PyObject* edblayer_add_source(PyObject* self, PyObject *args)
 {
     glog_EDBLayer *s = (glog_EDBLayer*)self;
     const char *predName = NULL;
-    const char *dictPredName = NULL;
     PyObject *obj = NULL;
-    if (!PyArg_ParseTuple(args, "sOs", &predName, &obj, &dictPredName)) {
+    if (!PyArg_ParseTuple(args, "sO", &predName, &obj)) {
         Py_INCREF(Py_None);
         return Py_None;
     }
     std::string sPredName(predName);
     auto predId = s->e->addEDBPredicate(sPredName);
     std::shared_ptr<EDBTable> ptr = std::shared_ptr<EDBTable>(
-            new PyTable(predId, sPredName, s->e,
-                std::string(dictPredName), obj));
+            new PyTable(predId, sPredName, s->e, obj));
     s->e->addEDBTable(predId, "PYTHON", ptr);
     Py_INCREF(Py_None);
     return Py_None;

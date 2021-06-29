@@ -14,7 +14,7 @@ class PyTable : public EDBTable
     private:
         const PredId_t predid;
         EDBLayer *layer;
-        std::shared_ptr<EDBTable> dictTable;
+
         PyObject *obj;
         PyObject *termClass;
         PyObject *moduleName;
@@ -28,7 +28,6 @@ class PyTable : public EDBTable
         PyTable(PredId_t predid,
                 std::string predname,
                 EDBLayer *layer,
-                std::string dictPredName,
                 PyObject *obj);
 
         uint8_t getArity() const;

@@ -1,5 +1,5 @@
 #include <glog-python/pyedbtable.h>
-#include <glog-python/pyedbitr.h>
+#include <glog-python/pyedbiterator.h>
 
 #include <vlog/concepts.h>
 #include <string>
@@ -7,7 +7,6 @@
 PyTable::PyTable(PredId_t predid,
         std::string predname,
         EDBLayer *layer,
-        std::string dictPredName,
         PyObject *obj)
     : predid(predid), layer(layer)
 {
@@ -16,8 +15,6 @@ PyTable::PyTable(PredId_t predid,
     this->moduleName = PyUnicode_FromString("pyterm");
     this->mod = PyImport_Import(moduleName);
     this->termClass = PyObject_GetAttrString(this->mod, "PyTerm");
-    auto dictPredId = layer->getPredID(dictPredName);
-    this->dictTable = layer->getEDBTable(dictPredId);
     this->sortedItrMethod = PyUnicode_FromString("get_sorted_iterator");
 }
 
@@ -91,9 +88,8 @@ EDBIterator *PyTable::getSortedIterator(const Literal &query,
     }
     auto pQuery = convertLiteralIntoPyTuple(query);
     auto resp = PyObject_CallMethodObjArgs(this->obj, sortedItrMethod, pQuery, argFields, NULL);
-    Py_DECREF(sortedItrMethod);
     if (resp != NULL) {
-        itr = new PyEDBIterator(predid, resp, dictTable);
+        itr = new PyEDBIterator(predid, resp, layer);
     }
     Py_DECREF(argFields);
     Py_DECREF(pQuery);
@@ -103,17 +99,17 @@ EDBIterator *PyTable::getSortedIterator(const Literal &query,
 bool PyTable::getDictNumber(const char *text, const size_t sizeText,
         uint64_t &id)
 {
-    return dictTable->getDictNumber(text, sizeText, id);
+    return false;
 }
 
 bool PyTable::getDictText(const uint64_t id, char *text)
 {
-    return dictTable->getDictText(id, text);
+    return false;
 }
 
 bool PyTable::getDictText(const uint64_t id, std::string &text)
 {
-    return dictTable->getDictText(id, text);
+    return false;
 }
 
 uint64_t PyTable::getNTerms()

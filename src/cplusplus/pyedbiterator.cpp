@@ -1,10 +1,9 @@
-#include <glog-python/pyedbitr.h>
+#include <glog-python/pyedbiterator.h>
 
-PyEDBIterator::PyEDBIterator(PredId_t predid, PyObject *obj,
-        std::shared_ptr<EDBTable> dictTable) : predid(predid)
+PyEDBIterator::PyEDBIterator(PredId_t predid, PyObject *obj, EDBLayer *layer) : predid(predid)
 {
     this->obj = obj;
-    this->dictTable = dictTable;
+    this->layer = layer;
     this->getTermMethod = PyUnicode_FromString("get_term_at_pos");
 }
 
@@ -23,17 +22,13 @@ void PyEDBIterator::next()
 Term_t PyEDBIterator::getElementAt(const uint8_t p)
 {
     auto sTerm = PyObject_CallMethodObjArgs(this->obj, this->getTermMethod, PyLong_FromLong(p), NULL);
-    Py_DECREF(this->getTermMethod);
-
     //Translate PyTerm into a Term_t
     Py_ssize_t size = 0;
     const char *ptr = PyUnicode_AsUTF8AndSize(sTerm, &size);
     LOG(DEBUGL) << "Retrieved " << std::string(ptr, size);
     Term_t id = 0;
-    bool resp = dictTable->getDictNumber(ptr, size, id);
+    bool resp = layer->getDictNumber(ptr, size, id);
     assert(resp);
-    LOG(DEBUGL) << "Got ID=" << id;
-
     return id;
 }
 
@@ -47,5 +42,10 @@ PyEDBIterator::~PyEDBIterator()
     {
         Py_DECREF(obj);
         obj = NULL;
+    }
+    if (getTermMethod != NULL)
+    {
+        Py_DECREF(getTermMethod);
+        getTermMethod = NULL;
     }
 }

@@ -13,12 +13,11 @@ class PyEDBIterator : public EDBIterator
     private:
         const PredId_t predid;
         PyObject *obj;
+        EDBLayer *layer;
         PyObject *getTermMethod;
-        std::shared_ptr<EDBTable> dictTable;
 
     public:
-        PyEDBIterator(PredId_t predid, PyObject *obj,
-                std::shared_ptr<EDBTable> dictTable);
+        PyEDBIterator(PredId_t predid, PyObject *obj, EDBLayer *layer);
 
         bool hasNext();
 
