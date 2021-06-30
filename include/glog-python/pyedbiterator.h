@@ -32,6 +32,7 @@ class PyEDBIterator : public EDBIterator
         }
 
         void skipDuplicatedFirstColumn() {
+            throw 10;
         }
 
         ~PyEDBIterator();

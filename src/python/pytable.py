@@ -23,5 +23,5 @@ class PyTable(ABC):
         pass
 
     @abstractmethod
-    def get_sorted_iterator(self, tuple : PyTuple, sorting_fields) -> PyIterator:
+    def get_iterator(self, tuple : PyTuple) -> PyIterator:
         pass

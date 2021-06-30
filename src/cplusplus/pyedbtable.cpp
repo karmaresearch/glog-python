@@ -2,6 +2,7 @@
 #include <glog-python/pyedbiterator.h>
 
 #include <vlog/concepts.h>
+#include <vlog/inmemory/inmemorytable.h>
 #include <string>
 
 PyTable::PyTable(PredId_t predid,
@@ -15,7 +16,7 @@ PyTable::PyTable(PredId_t predid,
     this->moduleName = PyUnicode_FromString("pyterm");
     this->mod = PyImport_Import(moduleName);
     this->termClass = PyObject_GetAttrString(this->mod, "PyTerm");
-    this->sortedItrMethod = PyUnicode_FromString("get_sorted_iterator");
+    this->getItrMethod = PyUnicode_FromString("get_iterator");
 }
 
 uint8_t PyTable::getArity() const
@@ -73,27 +74,35 @@ size_t PyTable::getCardinality(const Literal &query)
 
 EDBIterator *PyTable::getIterator(const Literal &query)
 {
-    std::vector<uint8_t> fields;
-    return getSortedIterator(query, fields);
+    EDBIterator *itr = NULL;
+    auto pQuery = convertLiteralIntoPyTuple(query);
+    auto resp = PyObject_CallMethodObjArgs(this->obj, getItrMethod, pQuery, NULL);
+    if (resp != NULL) {
+        itr = new PyEDBIterator(predid, resp, layer);
+    }
+    Py_DECREF(pQuery);
+    assert(itr != NULL);
+    return itr;
 }
 
 EDBIterator *PyTable::getSortedIterator(const Literal &query,
         const std::vector<uint8_t> &fields)
 {
-    EDBIterator *itr = NULL;
-    auto argFields = PyTuple_New(fields.size());
-    for(size_t i = 0; i < fields.size(); ++i)
-    {
-        PyTuple_SetItem(argFields, i, PyLong_FromLong(fields[i]));
+    auto itr = getIterator(query);
+    const auto arity = getArity();
+    //Create a segment and return an inmemory segment
+    SegmentInserter ins(arity);
+    std::unique_ptr<Term_t[]> row = std::unique_ptr<Term_t[]>(new Term_t[arity]);
+    while (itr->hasNext()) {
+        itr->next();
+        for(size_t i = 0; i < arity; ++i) {
+            row[i] = itr->getElementAt(i);
+        }
+        ins.addRow(row.get());
     }
-    auto pQuery = convertLiteralIntoPyTuple(query);
-    auto resp = PyObject_CallMethodObjArgs(this->obj, sortedItrMethod, pQuery, argFields, NULL);
-    if (resp != NULL) {
-        itr = new PyEDBIterator(predid, resp, layer);
-    }
-    Py_DECREF(argFields);
-    Py_DECREF(pQuery);
-    return itr;
+    auto seg = ins.getSegment();
+    auto sortedSeg = seg->sortBy(&fields);
+    return new InmemoryIterator(sortedSeg, predid, fields);
 }
 
 bool PyTable::getDictNumber(const char *text, const size_t sizeText,
@@ -184,9 +193,9 @@ PyTable::~PyTable()
         Py_DECREF(this->termClass);
         this->termClass = NULL;
     }
-    if (this->sortedItrMethod != NULL)
+    if (this->getItrMethod != NULL)
     {
-        Py_DECREF(this->sortedItrMethod);
-        this->sortedItrMethod = NULL;
+        Py_DECREF(this->getItrMethod);
+        this->getItrMethod = NULL;
     }
 }

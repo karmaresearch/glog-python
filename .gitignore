@@ -36,3 +36,5 @@ testOutput
 **/*.conf
 testcases/*
 experiments/*
+__pycache__
+.idea

@@ -21,19 +21,20 @@ void PyEDBIterator::next()
 
 Term_t PyEDBIterator::getElementAt(const uint8_t p)
 {
-    auto sTerm = PyObject_CallMethodObjArgs(this->obj, this->getTermMethod, PyLong_FromLong(p), NULL);
+    auto sTerm = PyObject_CallMethodObjArgs(this->obj, this->getTermMethod,
+            PyLong_FromLong(p), NULL);
     //Translate PyTerm into a Term_t
     Py_ssize_t size = 0;
     const char *ptr = PyUnicode_AsUTF8AndSize(sTerm, &size);
     LOG(DEBUGL) << "Retrieved " << std::string(ptr, size);
     Term_t id = 0;
-    bool resp = layer->getDictNumber(ptr, size, id);
-    assert(resp);
+    bool resp = layer->getOrAddDictNumber(ptr, size, id);
     return id;
 }
 
 void PyEDBIterator::clear()
 {
+    throw 10;
 }
 
 PyEDBIterator::~PyEDBIterator()
