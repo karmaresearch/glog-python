@@ -1,4 +1,3 @@
-from pyterm import PyTerm
 from abc import ABC, abstractmethod
 
 class PyIterator(ABC):
