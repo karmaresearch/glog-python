@@ -284,20 +284,37 @@ static PyObject *reasoner_execute_rule(PyObject *self, PyObject *args, PyObject 
                 }
             }
         } else {
-            std::vector<std::unique_ptr<ColumnReader>> readers;
-            for(size_t i = 0; i < nnodes; ++i) {
-                readers.push_back(inNodes[i]->getReader());
-            }
-            //Prepare the nodes
-            while(readers[0]->hasNext()) {
-                for(size_t j = 1; j < nnodes; ++j) {
-                    if (!readers[j]->hasNext()) {
-                        throw 10;
+            //Fix the provenance
+            if (nnodes > 2) {
+                const std::vector<std::shared_ptr<Column>> &provenance = out[0].nodes;
+                const size_t nrows = out[0].segment->getNRows();
+                std::vector<size_t> provnodes = GBGraph::postprocessProvenance(
+                        out[0].segment, provenance, nrows);
+                const auto nnodes = (provenance.size() + 2) / 2;
+                assert(provnodes.size() == nnodes * nrows);
+                for(size_t i = 0; i < nrows; ++i) {
+                    tupleset->nodes.emplace_back();
+                    for(size_t j = 0; j < nnodes; ++j) {
+                        tupleset->nodes.back().push_back(
+                                provnodes[i * nnodes + j]);
                     }
                 }
-                tupleset->nodes.emplace_back();
-                for(size_t j = 0; j < nnodes; ++j) {
-                    tupleset->nodes.back().push_back(readers[j]->next());
+            } else {
+                std::vector<std::unique_ptr<ColumnReader>> readers;
+                for(size_t i = 0; i < nnodes; ++i) {
+                    readers.push_back(inNodes[i]->getReader());
+                }
+                //Prepare the nodes
+                while(readers[0]->hasNext()) {
+                    for(size_t j = 1; j < nnodes; ++j) {
+                        if (!readers[j]->hasNext()) {
+                            throw 10;
+                        }
+                    }
+                    tupleset->nodes.emplace_back();
+                    for(size_t j = 0; j < nnodes; ++j) {
+                        tupleset->nodes.back().push_back(readers[j]->next());
+                    }
                 }
             }
         }
