@@ -1,22 +1,59 @@
-from src.python.pyiterator import PyIterator
-from src.python.pytable import PyTable
-from src.python.pytuple import PyTuple
+from pyiterator import PyIterator
+from pytable import PyTable
+
+import torch
+from kge.model import KgeModel
+from kge.util.io import load_checkpoint
+
+class EmbTopKEDBIterator(PyIterator):
+    def __init__(self, data):
+        super().__init__()
+        self.idx = -1
+        self.data = data
+
+    def has_next(self) -> bool:
+        return (self.idx + 1) < len(self.data)
+
+    def next(self):
+        self.idx += 1
+
+    def get_term_at_pos(self, pos) -> str:
+        v = self.data[self.idx][pos]
+        if pos == 2:
+            v = str(v)
+        return v
 
 
 class EmbTopKEDBTable(PyTable):
-    def __init__(self, predid, predname, n_terms, top_k, edb_layer):
-        super().__init__(predid, 3)
-        self.n_terms = n_terms
-        self.predname
+    def __init__(self, predname, relname, top_k, edb_layer, model_path):
+        super().__init__(predname, 3)
+        self.predname = predname
         self.top_k = top_k
         self.edb_layer = edb_layer
+        print("Loading the model ...")
+        checkpoint = load_checkpoint(model_path)
+        self.model = KgeModel.create_from(checkpoint)
+        print("done.")
+        self.n_terms = self.model.dataset.num_entities()
+        self.rel_name = relname
+        self.rel_id = None
+        for id, rel in enumerate(self.model.dataset.relation_ids()):
+            if rel == relname:
+                self.rel_id = id
+        if self.rel_id is None:
+            raise Exception("Relation not found")
+        # Load the entities
+        self.entities_dict = {}
+        for idx, e in enumerate(self.model.dataset.entity_strings()):
+            self.entities_dict[e] = idx
 
-    def _is_query_allowed(self, tuple):
-        if tuple.get_length() != 3:
+    def _is_query_allowed(self, t):
+        l = len(t)
+        if l != 3:
             return False
-        s = tuple.get_term_at_pos(0)
-        o = tuple.get_term_at_pos(1)
-        score = tuple.get_term_at_pos(2)
+        s = t[0]
+        o = t[1]
+        score = t[2]
         if s.is_variable() and o.is_variable():
             return False
         if not s.is_variable() and not o.is_variable():
@@ -38,20 +75,48 @@ class EmbTopKEDBTable(PyTable):
             return False
         return True
 
-    def get_cardinality(self, tuple: PyTuple) -> int:
-        if not self._is_query_allowed(tuple):
+    def get_cardinality(self, t: tuple) -> int:
+        if not self._is_query_allowed(t):
+            print("EMBTopkTable: Tuple is not allowed!")
             raise Exception("Tuple is not allowed")
         return self.top_k
 
-    def get_unique_values_in_column(self, tuple: PyTuple, column_nr) -> int:
+    def get_unique_values_in_column(self, t: tuple, column_nr) -> int:
         raise Exception("Not implemented!")
 
     def get_n_terms(self) -> int:
         self.n_terms + 1000 # I assume I return scores with three decimal digits of precision
 
-    def get_iterator(self, tuple: PyTuple) -> PyIterator:
-        if not self._is_query_allowed(tuple):
+    def get_iterator(self, t: tuple) -> PyIterator:
+        if not self._is_query_allowed(t):
+            print("EMBTopkTable: Tuple is not allowed!")
             raise Exception("Tuple is not allowed")
-        # TODO: Compute the embeddings
 
-        # TODO: Return the results with an iterator
+        answers = []
+        if t[0].is_variable():
+            # Retrieve ID of the object
+            value = t[1].get_value()
+            value_id = self.entities_dict[value]
+            o = torch.Tensor([value_id, ]).long()
+            p = torch.Tensor([self.rel_id, ]).long()
+            scores = self.model.score_po(p, o)[0]
+            s = torch.argsort(scores, descending=True)
+            top_k_s = s[:self.top_k]
+            top_k_scores = scores[top_k_s]
+            txt_top_k_s = self.model.dataset.entity_strings(top_k_s)
+            for idx, e in enumerate(txt_top_k_s):
+                answers.append((e, value, top_k_scores[idx].item()))
+        else:
+            # Retrieve ID of the subject
+            value = t[0].get_value()
+            value_id = self.entities_dict[value]
+            s = torch.Tensor([value_id,]).long()
+            p = torch.Tensor([self.rel_id, ]).long()
+            scores = self.model.score_sp(s, p)[0]
+            o = torch.argsort(scores, descending=True)
+            top_k_o = o[:self.top_k]
+            top_k_scores = scores[top_k_o]
+            txt_top_k_o = self.model.dataset.entity_strings(top_k_o)
+            for idx, e in enumerate(txt_top_k_o):
+                answers.append((value, e, top_k_scores[idx].item()))
+        return EmbTopKEDBIterator(answers)

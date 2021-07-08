@@ -32,11 +32,13 @@
 static PyObject * edblayer_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static int edblayer_init(glog_EDBLayer *self, PyObject *args, PyObject *kwds);
 static PyObject* edblayer_add_source(PyObject* self, PyObject *args);
+static PyObject* edblayer_get_term_id(PyObject* self, PyObject *args);
 static void edblayer_dealloc(glog_EDBLayer* self);
 
 
 static PyMethodDef EDBLayer_methods[] = {
     {"add_source", edblayer_add_source, METH_VARARGS, "Add a new source associated to an EDB predicate." },
+    {"get_term_id", edblayer_get_term_id, METH_VARARGS, "Get the numerical ID associated to a term." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -123,6 +125,23 @@ static PyObject* edblayer_add_source(PyObject* self, PyObject *args)
     s->e->addEDBTable(predId, "PYTHON", ptr);
     Py_INCREF(Py_None);
     return Py_None;
+}
+
+static PyObject* edblayer_get_term_id(PyObject* self, PyObject *args)
+{
+    const char *term;
+    if (!PyArg_ParseTuple(args, "s", &term))
+        return NULL;
+    glog_EDBLayer *s = (glog_EDBLayer*)self;
+    nTerm value;
+    auto len = strlen(term);
+    bool resp = s->e->getDictNumber(term, len, value);
+    if (resp) {
+        return PyLong_FromLong(value);
+    } else {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
 }
 
 static void edblayer_dealloc(glog_EDBLayer* self)

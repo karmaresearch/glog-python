@@ -1,4 +1,3 @@
-from pytuple import PyTuple
 from pyiterator import PyIterator
 from abc import ABC, abstractmethod
 
@@ -11,11 +10,11 @@ class PyTable(ABC):
         return self._arity
 
     @abstractmethod
-    def get_cardinality(self, tuple : PyTuple) -> int:
+    def get_cardinality(self, t: tuple) -> int:
         pass
 
     @abstractmethod
-    def get_unique_values_in_column(self, tuple : PyTuple, column_nr) -> int:
+    def get_unique_values_in_column(self, t: tuple, column_nr) -> int:
         pass
 
     @abstractmethod
@@ -23,5 +22,5 @@ class PyTable(ABC):
         pass
 
     @abstractmethod
-    def get_iterator(self, tuple : PyTuple) -> PyIterator:
+    def get_iterator(self, t: tuple) -> PyIterator:
         pass

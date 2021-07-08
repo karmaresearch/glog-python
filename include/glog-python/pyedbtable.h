@@ -20,6 +20,7 @@ class PyTable : public EDBTable
         PyObject *moduleName;
         PyObject *mod;
         PyObject *getItrMethod;
+        PyObject *getCardMethod;
 
         PyObject *convertLiteralIntoPyTuple(const Literal &lit);
 

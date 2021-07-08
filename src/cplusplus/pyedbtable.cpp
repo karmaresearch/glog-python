@@ -17,6 +17,7 @@ PyTable::PyTable(PredId_t predid,
     this->mod = PyImport_Import(moduleName);
     this->termClass = PyObject_GetAttrString(this->mod, "PyTerm");
     this->getItrMethod = PyUnicode_FromString("get_iterator");
+    this->getCardMethod = PyUnicode_FromString("get_cardinality");
 }
 
 uint8_t PyTable::getArity() const
@@ -59,36 +60,38 @@ size_t PyTable::estimateCardinality(const Literal &query)
 size_t PyTable::getCardinality(const Literal &query)
 {
     uint64_t out = 0;
-    auto obj = convertLiteralIntoPyTuple(query);
-    auto arglist = Py_BuildValue("(O)", obj);
-    auto resp = PyObject_CallMethod(this->obj, "get_cardinality", "(O)",
-            arglist);
+    auto tuple = convertLiteralIntoPyTuple(query);
+    auto resp = PyObject_CallMethodObjArgs(obj, getCardMethod, tuple, NULL);
     if (resp != NULL) {
         out = PyLong_AsLong(resp);
         Py_DECREF(resp);
+    } else {
+        PyErr_Print();
     }
-    Py_DECREF(arglist);
-    Py_DECREF(obj);
+    Py_DECREF(tuple);
     return out;
 }
 
 EDBIterator *PyTable::getIterator(const Literal &query)
 {
-    EDBIterator *itr = NULL;
-    auto pQuery = convertLiteralIntoPyTuple(query);
-    auto resp = PyObject_CallMethodObjArgs(this->obj, getItrMethod, pQuery, NULL);
-    if (resp != NULL) {
-        itr = new PyEDBIterator(predid, resp, layer);
-    }
-    Py_DECREF(pQuery);
-    assert(itr != NULL);
-    return itr;
+    const std::vector<uint8_t> fields;
+    return getSortedIterator(query, fields);
 }
 
 EDBIterator *PyTable::getSortedIterator(const Literal &query,
         const std::vector<uint8_t> &fields)
 {
-    auto itr = getIterator(query);
+    EDBIterator *itr = NULL;
+    auto pQuery = convertLiteralIntoPyTuple(query);
+    auto resp = PyObject_CallMethodObjArgs(obj, getItrMethod, pQuery, NULL);
+    if (resp != NULL) {
+        itr = new PyEDBIterator(predid, resp, layer);
+    } else {
+        PyErr_Print();
+    }
+    Py_DECREF(pQuery);
+    assert(itr != NULL);
+
     const auto arity = getArity();
     //Create a segment and return an inmemory segment
     SegmentInserter ins(arity);
@@ -161,11 +164,11 @@ PyObject *PyTable::convertLiteralIntoPyTuple(const Literal &lit)
             arglist = Py_BuildValue("(bs)", true, sId.c_str());
         } else {
             //Get the textual term
-            std::string text = "";
-            getDictText(t.getValue(), text);
+            std::string text = layer->getDictText(t.getValue());
             arglist = Py_BuildValue("(bs)", false, text.c_str());
         }
         auto a = PyObject_CallObject(termClass, arglist);
+        Py_INCREF(a);
         PyTuple_SetItem(out, i, a);
     }
     return out;
@@ -197,5 +200,10 @@ PyTable::~PyTable()
     {
         Py_DECREF(this->getItrMethod);
         this->getItrMethod = NULL;
+    }
+    if (this->getCardMethod != NULL)
+    {
+        Py_DECREF(this->getCardMethod);
+        this->getCardMethod = NULL;
     }
 }

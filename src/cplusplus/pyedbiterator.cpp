@@ -23,12 +23,17 @@ Term_t PyEDBIterator::getElementAt(const uint8_t p)
 {
     auto sTerm = PyObject_CallMethodObjArgs(this->obj, this->getTermMethod,
             PyLong_FromLong(p), NULL);
+    if (sTerm == NULL) {
+        PyErr_Print();
+    }
     //Translate PyTerm into a Term_t
     Py_ssize_t size = 0;
     const char *ptr = PyUnicode_AsUTF8AndSize(sTerm, &size);
-    LOG(DEBUGL) << "Retrieved " << std::string(ptr, size);
+    LOG(TRACEL) << "Retrieved " << std::string(ptr, size) << " from the python layer";
     Term_t id = 0;
     bool resp = layer->getOrAddDictNumber(ptr, size, id);
+    LOG(TRACEL) << "Term found? " << resp << " ID=" << id;
+    assert(resp);
     return id;
 }
 
