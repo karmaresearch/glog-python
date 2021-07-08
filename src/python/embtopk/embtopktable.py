@@ -19,7 +19,8 @@ class EmbTopKEDBIterator(PyIterator):
     def get_term_at_pos(self, pos) -> str:
         v = self.data[self.idx][pos]
         if pos == 2:
-            v = str(v)
+            # Round to three decimals
+            v = "%.3f" % v
         return v
 
 
@@ -89,7 +90,6 @@ class EmbTopKEDBTable(PyTable):
             sum += 1 / s
         for idx, s in enumerate(scores):
             scores[idx] = 1 / (s.item()) / sum.item()
-            scores[idx] = i
         return scores
 
     def get_iterator(self, t: tuple) -> PyIterator:
