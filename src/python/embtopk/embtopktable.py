@@ -3,7 +3,6 @@ from pytable import PyTable
 
 import torch
 from kge.model import KgeModel
-from kge.util.io import load_checkpoint
 
 class EmbTopKEDBIterator(PyIterator):
     def __init__(self, data):
@@ -25,15 +24,12 @@ class EmbTopKEDBIterator(PyIterator):
 
 
 class EmbTopKEDBTable(PyTable):
-    def __init__(self, predname, relname, top_k, edb_layer, model_path):
+    def __init__(self, predname, relname, top_k, edb_layer, model : KgeModel):
         super().__init__(predname, 3)
         self.predname = predname
         self.top_k = top_k
         self.edb_layer = edb_layer
-        print("Loading the model ...")
-        checkpoint = load_checkpoint(model_path)
-        self.model = KgeModel.create_from(checkpoint)
-        print("done.")
+        self.model = model
         self.n_terms = self.model.dataset.num_entities()
         self.rel_name = relname
         self.rel_id = None
@@ -87,6 +83,15 @@ class EmbTopKEDBTable(PyTable):
     def get_n_terms(self) -> int:
         self.n_terms + 1000 # I assume I return scores with three decimal digits of precision
 
+    def _normalize_scores(self, scores):
+        sum = 0.0
+        for s in scores:
+            sum += 1 / s
+        for idx, s in enumerate(scores):
+            scores[idx] = 1 / (s.item()) / sum.item()
+            scores[idx] = i
+        return scores
+
     def get_iterator(self, t: tuple) -> PyIterator:
         if not self._is_query_allowed(t):
             print("EMBTopkTable: Tuple is not allowed!")
@@ -103,6 +108,7 @@ class EmbTopKEDBTable(PyTable):
             s = torch.argsort(scores, descending=True)
             top_k_s = s[:self.top_k]
             top_k_scores = scores[top_k_s]
+            top_k_scores = self._normalize_scores(top_k_scores)
             txt_top_k_s = self.model.dataset.entity_strings(top_k_s)
             for idx, e in enumerate(txt_top_k_s):
                 answers.append((e, value, top_k_scores[idx].item()))
@@ -116,6 +122,7 @@ class EmbTopKEDBTable(PyTable):
             o = torch.argsort(scores, descending=True)
             top_k_o = o[:self.top_k]
             top_k_scores = scores[top_k_o]
+            top_k_scores = self._normalize_scores(top_k_scores)
             txt_top_k_o = self.model.dataset.entity_strings(top_k_o)
             for idx, e in enumerate(txt_top_k_o):
                 answers.append((value, e, top_k_scores[idx].item()))

@@ -62,6 +62,8 @@ class PyTable : public EDBTable
 
         void releaseIterator(EDBIterator *itr);
 
+        bool acceptQueriesWithFreeVariables();
+
         uint64_t getSize();
 
         ~PyTable();

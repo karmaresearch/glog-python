@@ -108,6 +108,17 @@ EDBIterator *PyTable::getSortedIterator(const Literal &query,
     return new InmemoryIterator(sortedSeg, predid, fields);
 }
 
+bool PyTable::acceptQueriesWithFreeVariables()
+{
+    bool out = true;
+    auto resp = PyObject_CallMethod(this->obj, "can_accept_queries_free_variables", NULL);
+    if (resp != NULL) {
+        out = resp == Py_True;
+        Py_DECREF(resp);
+    }
+    return out;
+}
+
 bool PyTable::getDictNumber(const char *text, const size_t sizeText,
         uint64_t &id)
 {

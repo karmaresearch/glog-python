@@ -24,3 +24,6 @@ class PyTable(ABC):
     @abstractmethod
     def get_iterator(self, t: tuple) -> PyIterator:
         pass
+
+    def can_accept_queries_free_variables(self) -> bool:
+        return True
