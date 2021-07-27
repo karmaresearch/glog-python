@@ -27,3 +27,6 @@ class PyTable(ABC):
 
     def can_accept_queries_free_variables(self) -> bool:
         return True
+
+    def is_query_allowed(self, t: tuple) -> bool:
+        return True

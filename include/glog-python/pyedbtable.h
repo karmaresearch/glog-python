@@ -21,6 +21,7 @@ class PyTable : public EDBTable
         PyObject *mod;
         PyObject *getItrMethod;
         PyObject *getCardMethod;
+        PyObject *isQuAllowedMethod;
 
         PyObject *convertLiteralIntoPyTuple(const Literal &lit);
 
@@ -65,6 +66,8 @@ class PyTable : public EDBTable
         bool acceptQueriesWithFreeVariables();
 
         uint64_t getSize();
+
+        bool isQueryAllowed(const Literal &query);
 
         ~PyTable();
 };

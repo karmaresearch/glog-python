@@ -18,6 +18,7 @@ PyTable::PyTable(PredId_t predid,
     this->termClass = PyObject_GetAttrString(this->mod, "PyTerm");
     this->getItrMethod = PyUnicode_FromString("get_iterator");
     this->getCardMethod = PyUnicode_FromString("get_cardinality");
+    this->isQuAllowedMethod= PyUnicode_FromString("is_query_allowed");
 }
 
 uint8_t PyTable::getArity() const
@@ -162,6 +163,21 @@ uint64_t PyTable::getSize()
     return out;
 }
 
+bool PyTable::isQueryAllowed(const Literal &query)
+{
+    bool out = true;
+    auto pQuery = convertLiteralIntoPyTuple(query);
+    auto resp = PyObject_CallMethodObjArgs(obj, isQuAllowedMethod, pQuery, NULL);
+    if (resp != NULL) {
+        out = resp == Py_True;
+        Py_DECREF(resp);
+    } else {
+        PyErr_Print();
+    }
+    Py_DECREF(pQuery);
+    return out;
+}
+
 PyObject *PyTable::convertLiteralIntoPyTuple(const Literal &lit)
 {
     //Create a tuple of PyTerm
@@ -216,5 +232,10 @@ PyTable::~PyTable()
     {
         Py_DECREF(this->getCardMethod);
         this->getCardMethod = NULL;
+    }
+    if (this->isQuAllowedMethod != NULL)
+    {
+        Py_DECREF(this->isQuAllowedMethod);
+        this->isQuAllowedMethod = NULL;
     }
 }

@@ -72,8 +72,13 @@ class EmbTopKEDBTable(PyTable):
             return False
         return True
 
+    def is_query_allowed(self, t: tuple) -> bool:
+        return self._is_query_allowed(t)
+
     def get_cardinality(self, t: tuple) -> int:
         if not self._is_query_allowed(t):
+            if t[0].is_variable() and t[1].is_variable() and t[2].is_variable() and t[0].get_value() != t[1].get_value() and t[1].get_value() != t[2].get_value():
+                return self.n_terms * self.top_k
             print("EMBTopkTable: Tuple is not allowed!")
             raise Exception("Tuple is not allowed")
         return self.top_k
