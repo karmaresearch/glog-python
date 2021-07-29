@@ -5,6 +5,7 @@ TODO
 *.vs*
 .ycm*
 .DS_Store
+venv*
 /build*
 /prob-build*
 /vlog*

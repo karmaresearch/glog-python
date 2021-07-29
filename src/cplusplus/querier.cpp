@@ -36,6 +36,7 @@ static PyObject* querier_get_list_predicates(PyObject* self, PyObject *args);
 static PyObject* querier_get_node_details_predicate(PyObject* self, PyObject *args);
 static PyObject* querier_get_facts_in_TG_node(PyObject* self, PyObject *args);
 static PyObject* querier_get_fact_in_TupleSet(PyObject* self, PyObject *args);
+static PyObject* querier_get_leaves(PyObject* self, PyObject *args);
 
 static PyMethodDef Querier_methods[] = {
     {"get_derivation_tree", querier_get_derivation_tree, METH_VARARGS, "Get derivation tree of a fact." },
@@ -44,6 +45,7 @@ static PyMethodDef Querier_methods[] = {
     {"get_node_details_predicate", querier_get_node_details_predicate, METH_VARARGS, "Get the nodes for a given predicate." },
     {"get_facts_in_TG_node", querier_get_facts_in_TG_node, METH_VARARGS, "Get the facts stored on a node in the TG." },
     {"get_fact_in_TupleSet", querier_get_fact_in_TupleSet, METH_VARARGS, "Get the fact stored on a given TupleSet." },
+    {"get_leaves", querier_get_leaves, METH_VARARGS, "Get the leaves for a given fact." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -224,4 +226,29 @@ static PyObject* querier_get_fact_in_TupleSet(PyObject* self, PyObject *args) {
         }
         return outObj;
     }
+}
+
+static PyObject* querier_get_leaves(PyObject* self, PyObject *args) {
+    size_t nodeId, factId;
+    if (!PyArg_ParseTuple(args, "ll", &nodeId, &factId)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    std::vector<Literal> leaves;
+    auto out = ((glog_Querier*)self)->q->getLeavesInDerivationTree(nodeId,
+            factId, leaves);
+    PyObject *outObj = PyList_New(0);
+    for(auto &leaf : leaves)
+    {
+        auto tuple = PyTuple_New(leaf.getTupleSize() + 1);
+        PyTuple_SetItem(tuple, 0, PyLong_FromLong(leaf.getPredicate().getId()));
+        for(size_t j = 0; j < leaf.getTupleSize(); ++j)
+        {
+            auto t = leaf.getTermAtPos(j);
+            PyTuple_SetItem(tuple, 1 + j, PyLong_FromLong(t.getValue()));
+        }
+        PyList_Append(outObj, tuple);
+        Py_DECREF(tuple);
+    }
+    return outObj;
 }
