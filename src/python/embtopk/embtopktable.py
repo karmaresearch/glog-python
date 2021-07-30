@@ -51,9 +51,11 @@ class EmbTopKEDBTable(PyTable):
         s = t[0]
         o = t[1]
         score = t[2]
+
+        if not s.is_variable() and not o.is_variable() and score.is_variable():
+            return True
+
         if s.is_variable() and o.is_variable():
-            return False
-        if not s.is_variable() and not o.is_variable():
             return False
         if not score.is_variable():
             return False
@@ -79,8 +81,11 @@ class EmbTopKEDBTable(PyTable):
         if not self._is_query_allowed(t):
             if t[0].is_variable() and t[1].is_variable() and t[2].is_variable() and t[0].get_value() != t[1].get_value() and t[1].get_value() != t[2].get_value():
                 return self.n_terms * self.top_k
-            print("EMBTopkTable: Tuple is not allowed!")
-            raise Exception("Tuple is not allowed")
+            else:
+                print("EMBTopkTable: Tuple is not allowed!")
+                raise Exception("Tuple is not allowed")
+        elif not t[0].is_variable() and not t[1].is_variable():
+            return 1
         return self.top_k
 
     def get_unique_values_in_column(self, t: tuple, column_nr) -> int:
@@ -117,7 +122,7 @@ class EmbTopKEDBTable(PyTable):
             txt_top_k_s = self.model.dataset.entity_strings(top_k_s)
             for idx, e in enumerate(txt_top_k_s):
                 answers.append((e, value, top_k_scores[idx].item()))
-        else:
+        elif t[1].is_variable():
             # Retrieve ID of the subject
             value = t[0].get_value()
             value_id = self.entities_dict[value]
@@ -131,4 +136,16 @@ class EmbTopKEDBTable(PyTable):
             txt_top_k_o = self.model.dataset.entity_strings(top_k_o)
             for idx, e in enumerate(txt_top_k_o):
                 answers.append((value, e, top_k_scores[idx].item()))
+        else:
+            value_s = t[0].get_value()
+            value_o = t[1].get_value()
+            value_s_id = self.entities_dict[value_s]
+            value_o_id = self.entities_dict[value_o]
+            s = torch.Tensor([value_s_id, ]).long()
+            o = torch.Tensor([value_o_id, ]).long()
+            p = torch.Tensor([self.rel_id, ]).long()
+            score = self.model.score_spo(s, p, o)
+            # TODO normalize score
+            answers.append((value_s, value_o, score[0].item()))
+
         return EmbTopKEDBIterator(answers)
