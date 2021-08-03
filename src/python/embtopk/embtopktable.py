@@ -26,7 +26,8 @@ class EmbTopKEDBIterator(PyIterator):
 
 
 class EmbTopKEDBTable(PyTable):
-    def __init__(self, predname, relname, top_k, edb_layer, model : KgeModel, entities_dict : dict = None):
+    def __init__(self, predname, relname, top_k, edb_layer, model : KgeModel, entities_dict : dict = None,
+                 known_answers_sp = None, known_answers_po = None, triples = None, so_map = None):
         super().__init__(predname, 3)
         self.predname = predname
         self.top_k = top_k
@@ -47,10 +48,23 @@ class EmbTopKEDBTable(PyTable):
             self.entities_dict = {}
             for idx, e in enumerate(self.model.dataset.entity_strings()):
                 self.entities_dict[e] = idx
-        self.known_answers_sp = model.dataset.index('train_sp_to_o')
-        self.known_answers_po = model.dataset.index('train_po_to_s')
-        triples = model.dataset.load_triples('train')
-        self.so = [(t[0], t[2]) for t in triples if t[1] == self.rel_id]
+        if known_answers_sp is None:
+            self.known_answers_sp = model.dataset.index('train_sp_to_o')
+        else:
+            self.known_answers_sp = known_answers_sp
+        if known_answers_po is None:
+            self.known_answers_po = model.dataset.index('train_po_to_s')
+        else:
+            self.known_answers_po = known_answers_po
+        if triples is None:
+            triples = model.dataset.load_triples('train')
+        if so_map is None:
+            self.so = [(t[0].item(), t[2].item()) for t in triples if t[1].item() == self.rel_id]
+        else:
+            if self.rel_id not in so_map:
+                self.so = []
+            else:
+                self.so = so_map[self.rel_id]
         if len(self.so) == 0:
             # Best possible scores
             self.known_min_score_s = 0
@@ -166,15 +180,16 @@ class EmbTopKEDBTable(PyTable):
             o = torch.Tensor([value_id, ]).long()
             p = torch.Tensor([self.rel_id, ]).long()
             scores = self.model.score_po(p, o, a)[0]
-        elif t[1].is_variable():
+        #elif t[1].is_variable():
+        else:
             # Retrieve ID of the subject
             value = t[0].get_value()
             value_id = self.entities_dict[value]
             s = torch.Tensor([value_id, ]).long()
             p = torch.Tensor([self.rel_id, ]).long()
             scores = self.model.score_sp(s, p, a)[0]
-        else:
-            raise Exception("Not implemented")
+        #else:
+        #    raise Exception("Not implemented")
         return scores
 
     def _get_true_answers(self, t : tuple):
@@ -185,15 +200,16 @@ class EmbTopKEDBTable(PyTable):
             o = torch.Tensor([value_id, ]).long().item()
             p = torch.Tensor([self.rel_id, ]).long().item()
             answers = self.known_answers_po.get([p, o])
-        elif t[1].is_variable():
+        #elif t[1].is_variable():
+        else:
             # Retrieve ID of the subject
             value = t[0].get_value()
             value_id = self.entities_dict[value]
             s = torch.Tensor([value_id, ]).long().item()
             p = torch.Tensor([self.rel_id, ]).long().item()
             answers = self.known_answers_sp.get([s, p])
-        else:
-            raise Exception("Not implemented")
+        #else:
+        #    raise Exception("Not implemented")
         return answers
 
     def _get_false_answers(self, t : tuple):
