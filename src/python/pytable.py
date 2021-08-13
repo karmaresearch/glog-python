@@ -30,3 +30,6 @@ class PyTable(ABC):
 
     def is_query_allowed(self, t: tuple) -> bool:
         return True
+
+    def can_change(self) -> bool:
+        return False

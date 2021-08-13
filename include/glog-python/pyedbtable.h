@@ -67,6 +67,10 @@ class PyTable : public EDBTable
 
         uint64_t getSize();
 
+        bool canChange();
+
+        bool areTermsEncoded();
+
         bool isQueryAllowed(const Literal &query);
 
         ~PyTable();

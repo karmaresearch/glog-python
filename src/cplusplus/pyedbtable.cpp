@@ -123,17 +123,20 @@ bool PyTable::acceptQueriesWithFreeVariables()
 bool PyTable::getDictNumber(const char *text, const size_t sizeText,
         uint64_t &id)
 {
-    return false;
+    LOG(ERRORL) << "getDictNumber: This method should never be invoked";
+    throw 10;
 }
 
 bool PyTable::getDictText(const uint64_t id, char *text)
 {
-    return false;
+    LOG(ERRORL) << "getDictText (1): This method should never be invoked";
+    throw 10;
 }
 
 bool PyTable::getDictText(const uint64_t id, std::string &text)
 {
-    return false;
+    LOG(ERRORL) << "getDictText (2): This method should never be invoked";
+    throw 10;
 }
 
 uint64_t PyTable::getNTerms()
@@ -175,6 +178,17 @@ bool PyTable::isQueryAllowed(const Literal &query)
         PyErr_Print();
     }
     Py_DECREF(pQuery);
+    return out;
+}
+
+bool PyTable::canChange()
+{
+    bool out = true;
+    auto resp = PyObject_CallMethod(this->obj, "can_change", NULL);
+    if (resp != NULL) {
+        out = resp == Py_True;
+        Py_DECREF(resp);
+    }
     return out;
 }
 
@@ -238,4 +252,9 @@ PyTable::~PyTable()
         Py_DECREF(this->isQuAllowedMethod);
         this->isQuAllowedMethod = NULL;
     }
+}
+
+bool PyTable::areTermsEncoded()
+{
+    return false;
 }

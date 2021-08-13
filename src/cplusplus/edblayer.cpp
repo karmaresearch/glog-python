@@ -105,6 +105,10 @@ static int edblayer_init(glog_EDBLayer *self, PyObject *args, PyObject *kwds)
         self->conf = new EDBConf(path);
         self->conf->setRootPath(Utils::parentDir(path));
         self->e = new EDBLayer(*self->conf, false);
+    } else {
+        self->conf = new EDBConf("");
+        self->conf->setRootPath(".");
+        self->e = new EDBLayer(*self->conf, false);
     }
     return 0;
 }
