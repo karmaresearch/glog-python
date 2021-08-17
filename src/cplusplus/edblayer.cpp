@@ -32,12 +32,16 @@
 static PyObject * edblayer_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 static int edblayer_init(glog_EDBLayer *self, PyObject *args, PyObject *kwds);
 static PyObject* edblayer_add_source(PyObject* self, PyObject *args);
+static PyObject* edblayer_add_csv_source(PyObject* self, PyObject *args);
+static PyObject* edblayer_replace_facts_csv_source(PyObject* self, PyObject *args);
 static PyObject* edblayer_get_term_id(PyObject* self, PyObject *args);
 static void edblayer_dealloc(glog_EDBLayer* self);
 
 
 static PyMethodDef EDBLayer_methods[] = {
     {"add_source", edblayer_add_source, METH_VARARGS, "Add a new source associated to an EDB predicate." },
+    {"add_csv_source", edblayer_add_csv_source, METH_VARARGS, "Add a new CSV source associated to an EDB predicate." },
+    {"replace_facts_csv_source", edblayer_replace_facts_csv_source, METH_VARARGS, "Replace the content of a CSV source." },
     {"get_term_id", edblayer_get_term_id, METH_VARARGS, "Get the numerical ID associated to a term." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
@@ -127,6 +131,107 @@ static PyObject* edblayer_add_source(PyObject* self, PyObject *args)
     std::shared_ptr<EDBTable> ptr = std::shared_ptr<EDBTable>(
             new PyTable(predId, sPredName, s->e, obj));
     s->e->addEDBTable(predId, "PYTHON", ptr);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject* edblayer_replace_facts_csv_source(PyObject* self, PyObject *args)
+{
+    glog_EDBLayer *s = (glog_EDBLayer*)self;
+    const char *predName = NULL;
+    PyObject *obj = NULL;
+    if (!PyArg_ParseTuple(args, "sO", &predName, &obj)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    std::string sPredName(predName);
+    auto predId = s->e->addEDBPredicate(sPredName);
+
+    std::vector<std::vector<std::string>> rows;
+    //Parse the array of strings
+    if (PyList_Check(obj))
+    {
+        auto nrows = PyList_Size(obj);
+        for(size_t i = 0; i < nrows; ++i)
+        {
+            auto item = PyList_GetItem(obj, i);
+            std::vector<std::string> row;
+            if (PyTuple_Check(item))
+            {
+                auto size_row = PyTuple_Size(item);
+                for(size_t j = 0; j < size_row; ++j)
+                {
+                    auto sTerm = PyTuple_GetItem(item, j);
+                    if (PyUnicode_Check(sTerm))
+                    {
+                        Py_ssize_t size = 0;
+                        const char *ptr = PyUnicode_AsUTF8AndSize(sTerm, &size);
+                        std::string sTermConverted = std::string(ptr, size);
+                        row.push_back(sTermConverted);
+                    } else {
+                        throw 10;
+                    }
+                }
+            } else {
+                throw 10;
+            }
+            rows.push_back(row);
+        }
+    } else {
+        throw 10;
+    }
+
+    s->e->addInmemoryTable(sPredName, predId, rows);
+    Py_INCREF(Py_None);
+    return Py_None;
+}
+
+static PyObject* edblayer_add_csv_source(PyObject* self, PyObject *args)
+{
+    glog_EDBLayer *s = (glog_EDBLayer*)self;
+    const char *predName = NULL;
+    PyObject *obj = NULL;
+    if (!PyArg_ParseTuple(args, "sO", &predName, &obj)) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+    std::string sPredName(predName);
+    auto predId = s->e->addEDBPredicate(sPredName);
+
+    std::vector<std::vector<std::string>> rows;
+    //Parse the array of strings
+    if (PyList_Check(obj))
+    {
+        auto nrows = PyList_Size(obj);
+        for(size_t i = 0; i < nrows; ++i)
+        {
+            auto item = PyList_GetItem(obj, i);
+            std::vector<std::string> row;
+            if (PyTuple_Check(item))
+            {
+                auto size_row = PyTuple_Size(item);
+                for(size_t j = 0; j < size_row; ++j)
+                {
+                    auto sTerm = PyTuple_GetItem(item, j);
+                    if (PyUnicode_Check(sTerm))
+                    {
+                        Py_ssize_t size = 0;
+                        const char *ptr = PyUnicode_AsUTF8AndSize(sTerm, &size);
+                        std::string sTermConverted = std::string(ptr, size);
+                        row.push_back(sTermConverted);
+                    } else {
+                        throw 10;
+                    }
+                }
+            } else {
+                throw 10;
+            }
+            rows.push_back(row);
+        }
+    } else {
+        throw 10;
+    }
+    s->e->addInmemoryTable(sPredName, predId, rows);
     Py_INCREF(Py_None);
     return Py_None;
 }
