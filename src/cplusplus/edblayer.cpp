@@ -183,6 +183,7 @@ static PyObject* edblayer_replace_facts_csv_source(PyObject* self, PyObject *arg
 
     s->e->addInmemoryTable(sPredName, predId, rows);
     Py_INCREF(Py_None);
+    Py_DECREF(obj);
     return Py_None;
 }
 
@@ -233,6 +234,7 @@ static PyObject* edblayer_add_csv_source(PyObject* self, PyObject *args)
     }
     s->e->addInmemoryTable(sPredName, predId, rows);
     Py_INCREF(Py_None);
+    Py_DECREF(obj);
     return Py_None;
 }
 
