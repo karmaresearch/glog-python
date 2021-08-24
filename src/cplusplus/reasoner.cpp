@@ -201,6 +201,7 @@ static void reasoner_dealloc(glog_Reasoner* self)
     if (self->program != NULL) {
         Py_DECREF(self->program);
     }
+    self->sn = NULL;
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 

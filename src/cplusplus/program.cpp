@@ -117,6 +117,7 @@ static void program_dealloc(glog_Program* self)
     if (self->program) {
         Py_DECREF(self->e);
     }
+    self->program = NULL;
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
