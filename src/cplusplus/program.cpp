@@ -160,7 +160,8 @@ static PyObject* program_add_rule(PyObject* self, PyObject *args)
         if (out == "") {
             return PyLong_FromLong(ruleId);
         } else {
-            return PyUnicode_FromString(out.c_str());
+            PyErr_SetString(PyExc_TypeError, out.c_str());
+            return (PyObject *) NULL;
         }
     }
     Py_INCREF(Py_None);
