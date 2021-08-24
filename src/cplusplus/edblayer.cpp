@@ -145,7 +145,6 @@ static PyObject* edblayer_replace_facts_csv_source(PyObject* self, PyObject *arg
         return Py_None;
     }
     std::string sPredName(predName);
-    auto predId = s->e->addEDBPredicate(sPredName);
 
     std::vector<std::vector<std::string>> rows;
     //Parse the array of strings
@@ -181,7 +180,7 @@ static PyObject* edblayer_replace_facts_csv_source(PyObject* self, PyObject *arg
         throw 10;
     }
 
-    s->e->addInmemoryTable(sPredName, predId, rows);
+    s->e->replaceFactsInmemoryTable(sPredName, rows);
     Py_INCREF(Py_None);
     return Py_None;
 }
