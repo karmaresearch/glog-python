@@ -116,6 +116,7 @@ static void querier_dealloc(glog_Querier* self) {
     if (self->g != NULL) {
         Py_DECREF(self->g);
     }
+    self->q = NULL;
     Py_TYPE(self)->tp_free((PyObject*)self);
 }
 
