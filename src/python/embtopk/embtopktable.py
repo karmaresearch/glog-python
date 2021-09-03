@@ -27,15 +27,17 @@ class EmbTopKEDBIterator(PyIterator):
 
 class EmbTopKEDBTable(PyTable):
     def __init__(self, predname, relname, top_k, edb_layer, model : KgeModel, entities_dict : dict = None,
-                 known_answers_sp = None, known_answers_po = None, triples = None, so_map = None):
+                 known_answers_sp = None, known_answers_po = None, triples = None, so_map = None, score_threshold=None):
         super().__init__(predname, 3)
         self.predname = predname
         self.top_k = top_k
+        assert(top_k > 0)
         self.edb_layer = edb_layer
         self.model = model
         self.n_terms = self.model.dataset.num_entities()
         self.rel_name = relname
         self.rel_id = None
+        self.score_threshold = score_threshold
         for id, rel in enumerate(self.model.dataset.relation_ids()):
             if rel == relname:
                 self.rel_id = id
@@ -233,6 +235,13 @@ class EmbTopKEDBTable(PyTable):
             top_k_s = s[:self.top_k]
             top_k_scores = scores[top_k_s]
             top_k_scores = self._normalize_scores(t, top_k_scores)
+            if self.score_threshold is not None:
+                # Filter values with low scores
+                top_k_scores = top_k_scores.double()
+                top_k_scores = torch.where(top_k_scores < self.score_threshold, 0., top_k_scores)
+                retained_entities = torch.nonzero(top_k_scores, as_tuple=True)
+                top_k_s = top_k_s[retained_entities]
+                top_k_scores = top_k_scores[retained_entities]
             txt_top_k_s = self.model.dataset.entity_strings(top_k_s)
             for idx, e in enumerate(txt_top_k_s):
                 answers.append((e, value, top_k_scores[idx].item()))
@@ -247,6 +256,13 @@ class EmbTopKEDBTable(PyTable):
             top_k_o = o[:self.top_k]
             top_k_scores = scores[top_k_o]
             top_k_scores = self._normalize_scores(t, top_k_scores)
+            if self.score_threshold is not None:
+                # Filter values with low scores
+                top_k_scores = top_k_scores.double()
+                top_k_scores = torch.where(top_k_scores < self.score_threshold, 0., top_k_scores)
+                retained_entities = torch.nonzero(top_k_scores, as_tuple=True)
+                top_k_o = top_k_o[retained_entities]
+                top_k_scores = top_k_scores[retained_entities]
             txt_top_k_o = self.model.dataset.entity_strings(top_k_o)
             for idx, e in enumerate(txt_top_k_o):
                 answers.append((value, e, top_k_scores[idx].item()))

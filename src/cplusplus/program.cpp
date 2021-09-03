@@ -125,6 +125,10 @@ static PyObject* program_load_from_file(PyObject *self, PyObject *args)
 {
     const char *path = NULL;
     if (PyArg_ParseTuple(args, "|s", &path)) {
+        if (!Utils::exists(std::string(path))) {
+            LOG(ERRORL) << "File " << path << " does not exist";
+            return NULL;
+        }
         ((glog_Program*)self)->program->readFromFile(std::string(path));
     }
     Py_INCREF(Py_None);

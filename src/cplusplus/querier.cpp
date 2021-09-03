@@ -37,6 +37,7 @@ static PyObject* querier_get_node_details_predicate(PyObject* self, PyObject *ar
 static PyObject* querier_get_facts_in_TG_node(PyObject* self, PyObject *args);
 static PyObject* querier_get_fact_in_TupleSet(PyObject* self, PyObject *args);
 static PyObject* querier_get_leaves(PyObject* self, PyObject *args);
+static PyObject* querier_get_all_facts(PyObject* self, PyObject *args);
 
 static PyMethodDef Querier_methods[] = {
     {"get_derivation_tree", querier_get_derivation_tree, METH_VARARGS, "Get derivation tree of a fact." },
@@ -46,6 +47,7 @@ static PyMethodDef Querier_methods[] = {
     {"get_facts_in_TG_node", querier_get_facts_in_TG_node, METH_VARARGS, "Get the facts stored on a node in the TG." },
     {"get_fact_in_TupleSet", querier_get_fact_in_TupleSet, METH_VARARGS, "Get the fact stored on a given TupleSet." },
     {"get_leaves", querier_get_leaves, METH_VARARGS, "Get the leaves for a given fact." },
+    {"get_all_facts", querier_get_all_facts, METH_VARARGS, "Get all the facts in the TG." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -252,4 +254,32 @@ static PyObject* querier_get_leaves(PyObject* self, PyObject *args) {
         Py_DECREF(tuple);
     }
     return outObj;
+}
+
+PyObject* querier_get_all_facts(PyObject* self, PyObject *args)
+{
+    auto s = ((glog_Querier*)self);
+    PyObject *out = PyDict_New();
+    auto facts = s->q->getAllFacts();
+    for(auto p : facts)
+    {
+       auto predName = PyUnicode_FromString(p.first.c_str());
+       PyObject *predFacts = PyList_New(0);
+       for(auto predFact : p.second)
+       {
+           PyObject *tuple = PyTuple_New(predFact.size());
+           for (size_t i = 0; i < predFact.size(); ++i)
+           {
+                auto termFact = predFact[i];
+                auto term = PyUnicode_FromString(termFact.c_str());
+                PyTuple_SetItem(tuple, i, term);
+           }
+           PyList_Append(predFacts, tuple);
+           Py_DECREF(tuple);
+       }
+       PyDict_SetItem(out, predName, predFacts);
+       Py_DECREF(predFacts);
+       Py_DECREF(predName);
+    }
+    return out;
 }
