@@ -167,7 +167,7 @@ class EmbTopKEDBTable(PyTable):
         assert(best_score <= 0)
         worst_score = torch.mean(false_scores).item()
         assert (worst_score <= 0)
-        assert(best_score > worst_score)
+        assert(best_score >= worst_score)
         clamped_scores = torch.clamp(scores, min=worst_score, max=best_score)
         scores = clamped_scores - worst_score
         range = best_score - worst_score
