@@ -36,6 +36,7 @@ static PyObject* querier_get_list_predicates(PyObject* self, PyObject *args);
 static PyObject* querier_get_node_details_predicate(PyObject* self, PyObject *args);
 static PyObject* querier_get_facts_in_TG_node(PyObject* self, PyObject *args);
 static PyObject* querier_get_fact_in_TupleSet(PyObject* self, PyObject *args);
+static PyObject* querier_get_facts_coordinates_with_predicate(PyObject* self, PyObject *args);
 static PyObject* querier_get_leaves(PyObject* self, PyObject *args);
 static PyObject* querier_get_all_facts(PyObject* self, PyObject *args);
 static PyObject* querier_get_predicate_name(PyObject* self, PyObject *args);
@@ -48,6 +49,7 @@ static PyMethodDef Querier_methods[] = {
     {"get_node_details_predicate", querier_get_node_details_predicate, METH_VARARGS, "Get the nodes for a given predicate." },
     {"get_facts_in_TG_node", querier_get_facts_in_TG_node, METH_VARARGS, "Get the facts stored on a node in the TG." },
     {"get_fact_in_TupleSet", querier_get_fact_in_TupleSet, METH_VARARGS, "Get the fact stored on a given TupleSet." },
+    {"get_facts_coordinates_with_predicate", querier_get_facts_coordinates_with_predicate, METH_VARARGS, "Get all the facts with a given predicate." },
     {"get_leaves", querier_get_leaves, METH_VARARGS, "Get the leaves for a given fact." },
     {"get_all_facts", querier_get_all_facts, METH_VARARGS, "Get all the facts in the TG." },
     {"get_predicate_name", querier_get_predicate_name, METH_VARARGS, "Get predicate name." },
@@ -316,4 +318,39 @@ PyObject* querier_get_term_name(PyObject* self, PyObject *args)
     auto termName = PyUnicode_FromString(termNameStr.c_str());
     return termName;
 
+}
+
+static PyObject* querier_get_facts_coordinates_with_predicate(PyObject* self, PyObject *args)
+{
+    const char *predName = NULL;
+    if (!PyArg_ParseTuple(args, "s", &predName) || predName == NULL) {
+        Py_INCREF(Py_None);
+        return Py_None;
+    }
+
+    PyObject *out = PyList_New(0);
+    auto s = ((glog_Querier*)self);
+    auto pairs = s->q->getAllFactsPredicate(std::string(predName));
+    auto card = pairs.second.size() / pairs.first.size();
+    for(size_t i = 0; i < pairs.first.size(); ++i)
+    {
+        auto c = pairs.first[i];
+        PyObject *fact = PyTuple_New(2);
+        PyObject *tuple = PyTuple_New(card);
+        for(size_t j = 0; j < card; ++j)
+        {
+            auto term = pairs.second[i * card + j];
+            PyTuple_SetItem(tuple, j, PyLong_FromLong(term));
+        }
+        PyTuple_SetItem(fact, 0, tuple);
+        //Py_DECREF(tuple);
+        PyObject *coordinates = PyTuple_New(2);
+        PyTuple_SetItem(coordinates, 0, PyLong_FromLong(c.first)); //nodeId
+        PyTuple_SetItem(coordinates, 1, PyLong_FromLong(c.second)); //offset
+        PyTuple_SetItem(fact, 1, coordinates);
+        //Py_DECREF(coordinates);
+        PyList_Append(out, fact);
+        //Py_DECREF(fact);
+    }
+    return out;
 }
