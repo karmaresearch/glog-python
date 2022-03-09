@@ -35,6 +35,10 @@ static PyObject* edblayer_add_source(PyObject* self, PyObject *args);
 static PyObject* edblayer_add_csv_source(PyObject* self, PyObject *args);
 static PyObject* edblayer_replace_facts_csv_source(PyObject* self, PyObject *args);
 static PyObject* edblayer_get_term_id(PyObject* self, PyObject *args);
+static PyObject* edblayer_get_n_terms(PyObject* self, PyObject *args);
+static PyObject* edblayer_get_n_predicates(PyObject* self, PyObject *args);
+static PyObject* edblayer_get_predicates(PyObject* self, PyObject *args);
+static PyObject* edblayer_get_facts(PyObject* self, PyObject *args);
 static void edblayer_dealloc(glog_EDBLayer* self);
 
 
@@ -43,6 +47,10 @@ static PyMethodDef EDBLayer_methods[] = {
     {"add_csv_source", edblayer_add_csv_source, METH_VARARGS, "Add a new CSV source associated to an EDB predicate." },
     {"replace_facts_csv_source", edblayer_replace_facts_csv_source, METH_VARARGS, "Replace the content of a CSV source." },
     {"get_term_id", edblayer_get_term_id, METH_VARARGS, "Get the numerical ID associated to a term." },
+    {"get_n_terms", edblayer_get_n_terms, METH_VARARGS, "Get the number of terms." },
+    {"get_n_predicates", edblayer_get_n_predicates, METH_VARARGS, "Get the number of predicates." },
+    {"get_facts", edblayer_get_facts, METH_VARARGS, "Get facts with a given EDB predicate." },
+    {"get_predicates", edblayer_get_predicates, METH_VARARGS, "Get list of all EDB predicates." },
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
@@ -250,6 +258,65 @@ static PyObject* edblayer_get_term_id(PyObject* self, PyObject *args)
         Py_INCREF(Py_None);
         return Py_None;
     }
+}
+
+static PyObject* edblayer_get_n_terms(PyObject* self, PyObject *args)
+{
+    glog_EDBLayer *s = (glog_EDBLayer*)self;
+    auto value = s->e->getNTerms();
+    return PyLong_FromLong(value);
+}
+
+static PyObject* edblayer_get_n_predicates(PyObject* self, PyObject *args)
+{
+    glog_EDBLayer *s = (glog_EDBLayer*)self;
+    auto value = s->e->getNPredicates();
+    return PyLong_FromLong(value);
+}
+
+static PyObject* edblayer_get_predicates(PyObject* self, PyObject *args)
+{
+    glog_EDBLayer *s = (glog_EDBLayer*)self;
+    auto predicates = s->e->getAllEDBPredicates();
+    PyObject *obj = PyList_New(0);
+    for(auto pId : predicates) {
+        std::string predName = s->e->getPredName(pId);
+        auto value = PyUnicode_FromString(predName.c_str());
+        PyList_Append(obj, value);
+        Py_DECREF(value);
+    }
+    return obj;
+}
+
+static PyObject* edblayer_get_facts(PyObject* self, PyObject *args)
+{
+    glog_EDBLayer *s = (glog_EDBLayer*)self;
+    const char *predicateName;
+    if (!PyArg_ParseTuple(args, "s", &predicateName))
+        return NULL;
+    auto predId = s->e->getPredID(std::string(predicateName));
+    auto card = s->e->getPredArity(predId);
+    VTuple predTuple(card);
+    for(int i = 0; i < card; ++i) {
+        predTuple.set(VTerm(i+1,0),i);
+    }
+    auto adornment = Predicate::calculateAdornment(predTuple);
+    Predicate pred(predId, adornment, EDB, card);
+    Literal lit(pred, predTuple);
+    auto itr = s->e->getIterator(lit);
+    PyObject *obj = PyList_New(0);
+    while(itr->hasNext()) {
+        itr->next();
+        auto tuple = PyTuple_New(card);
+        for(int j = 0; j < card; ++j) {
+            auto v = itr->getElementAt(j);
+            PyTuple_SetItem(tuple, j, PyLong_FromLong(v));
+        }
+        PyList_Append(obj, tuple);
+        Py_DECREF(tuple);
+    }
+    s->e->releaseIterator(itr);
+    return obj;
 }
 
 static void edblayer_dealloc(glog_EDBLayer* self)

@@ -157,13 +157,15 @@ static PyObject* querier_get_derivation_tree_in_TupleSet(PyObject* self,
         return Py_None;
     }
     auto &ie = n->nodes[factId];
+    DuplicateChecker checker;
     auto out = s->q->getDerivationTree(n->data,
             n->nodeId,
             factId,
             n->predId,
             n->ruleIdx,
             n->step,
-            ie);
+            ie,
+            &checker);
     std::stringstream ssOut;
     JSON::write(ssOut, out);
     std::string sOut = ssOut.str();
@@ -243,23 +245,29 @@ static PyObject* querier_get_leaves(PyObject* self, PyObject *args) {
         Py_INCREF(Py_None);
         return Py_None;
     }
-    std::vector<Literal> leaves;
-    auto out = ((glog_Querier*)self)->q->getLeavesInDerivationTree(nodeId,
+    std::vector<std::vector<Literal>> leaves;
+    ((glog_Querier*)self)->q->getLeavesInDerivationTree(nodeId,
             factId, leaves);
-    PyObject *outObj = PyList_New(0);
-    for(auto &leaf : leaves)
+    PyObject *outAll = PyList_New(0);
+    for(auto &leafSet : leaves)
     {
-        auto tuple = PyTuple_New(leaf.getTupleSize() + 1);
-        PyTuple_SetItem(tuple, 0, PyLong_FromLong(leaf.getPredicate().getId()));
-        for(size_t j = 0; j < leaf.getTupleSize(); ++j)
+        PyObject *outObj = PyList_New(0);
+        for(auto &leaf : leafSet)
         {
-            auto t = leaf.getTermAtPos(j);
-            PyTuple_SetItem(tuple, 1 + j, PyLong_FromLong(t.getValue()));
+            auto tuple = PyTuple_New(leaf.getTupleSize() + 1);
+            PyTuple_SetItem(tuple, 0, PyLong_FromLong(leaf.getPredicate().getId()));
+            for(size_t j = 0; j < leaf.getTupleSize(); ++j)
+            {
+                auto t = leaf.getTermAtPos(j);
+                PyTuple_SetItem(tuple, 1 + j, PyLong_FromLong(t.getValue()));
+            }
+            PyList_Append(outObj, tuple);
+            Py_DECREF(tuple);
         }
-        PyList_Append(outObj, tuple);
-        Py_DECREF(tuple);
+        PyList_Append(outAll, outObj);
+        Py_DECREF(outObj);
     }
-    return outObj;
+    return outAll;
 }
 
 PyObject* querier_get_all_facts(PyObject* self, PyObject *args)
