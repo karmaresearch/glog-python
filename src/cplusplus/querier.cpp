@@ -246,6 +246,7 @@ static PyObject* querier_get_leaves(PyObject* self, PyObject *args) {
         return Py_None;
     }
     std::vector<std::vector<Literal>> leaves;
+    leaves.emplace_back();
     ((glog_Querier*)self)->q->getLeavesInDerivationTree(nodeId,
             factId, leaves);
     PyObject *outAll = PyList_New(0);
