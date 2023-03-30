@@ -39,6 +39,11 @@ static PyObject* edblayer_get_n_terms(PyObject* self, PyObject *args);
 static PyObject* edblayer_get_n_predicates(PyObject* self, PyObject *args);
 static PyObject* edblayer_get_predicates(PyObject* self, PyObject *args);
 static PyObject* edblayer_get_facts(PyObject* self, PyObject *args);
+/*static PyObject* edblayer_is_null_value(PyObject* self, PyObject *args);
+static PyObject* edblayer_is_integer(PyObject* self, PyObject *args);
+static PyObject* edblayer_is_float(PyObject* self, PyObject *args);
+static PyObject* edblayer_get_integer_value(PyObject* self, PyObject *args);
+static PyObject* edblayer_get_float_value(PyObject* self, PyObject *args);*/
 static void edblayer_dealloc(glog_EDBLayer* self);
 
 
@@ -51,7 +56,12 @@ static PyMethodDef EDBLayer_methods[] = {
     {"get_n_predicates", edblayer_get_n_predicates, METH_VARARGS, "Get the number of predicates." },
     {"get_facts", edblayer_get_facts, METH_VARARGS, "Get facts with a given EDB predicate." },
     {"get_predicates", edblayer_get_predicates, METH_VARARGS, "Get list of all EDB predicates." },
-    {NULL, NULL, 0, NULL}        /* Sentinel */
+/*    {"is_null_value", edblayer_is_null_value, METH_VARARGS, "Tell whether the term is a NULL value." },
+    {"is_integer", edblayer_is_integer, METH_VARARGS, "Tell whether the term is an integer." },
+    {"is_float", edblayer_is_float, METH_VARARGS, "Tell whether the term is a float value." },
+    {"get_integer_value", edblayer_get_integer_value, METH_VARARGS, "Get the integer value." },
+    {"get_float_value", edblayer_get_float_value, METH_VARARGS, "Get the float value." },
+*/    {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
 PyTypeObject glog_EDBLayerType = {
@@ -318,6 +328,26 @@ static PyObject* edblayer_get_facts(PyObject* self, PyObject *args)
     s->e->releaseIterator(itr);
     return obj;
 }
+
+/*static PyObject* edblayer_is_null_value(PyObject* self, PyObject *args)
+{
+}
+
+static PyObject* edblayer_is_integer(PyObject* self, PyObject *args)
+{
+}
+
+static PyObject* edblayer_is_float(PyObject* self, PyObject *args)
+{
+}
+
+static PyObject* edblayer_get_integer_value(PyObject* self, PyObject *args)
+{
+}
+
+static PyObject* edblayer_get_float_value(PyObject* self, PyObject *args)
+{
+}*/
 
 static void edblayer_dealloc(glog_EDBLayer* self)
 {

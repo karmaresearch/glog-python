@@ -3,6 +3,8 @@
 
 #include <vlog/concepts.h>
 #include <vlog/inmemory/inmemorytable.h>
+#include <vlog/edb.h>
+#include <vlog/chasemgmt.h>
 #include <string>
 
 PyTable::PyTable(PredId_t predid,
@@ -105,8 +107,12 @@ EDBIterator *PyTable::getSortedIterator(const Literal &query,
         ins.addRow(row.get());
     }
     auto seg = ins.getSegment();
-    auto sortedSeg = seg->sortBy(&fields);
-    return new InmemoryIterator(sortedSeg, predid, fields);
+    if (!seg->isEmpty()) {
+        auto sortedSeg = seg->sortBy(&fields);
+        return new InmemoryIterator(sortedSeg, predid, fields);
+    } else {
+        return new InmemoryIterator(NULL, predid, fields);
+    }
 }
 
 bool PyTable::acceptQueriesWithFreeVariables()
@@ -202,11 +208,23 @@ PyObject *PyTable::convertLiteralIntoPyTuple(const Literal &lit)
         PyObject *arglist;
         if (t.isVariable()) {
             auto sId = std::to_string(t.getId());
-            arglist = Py_BuildValue("(bs)", true, sId.c_str());
+            arglist = Py_BuildValue("(bslb)", true, sId.c_str(), 0, false);
         } else {
-            //Get the textual term
-            std::string text = layer->getDictText(t.getValue());
-            arglist = Py_BuildValue("(bs)", false, text.c_str());
+            if (IS_NULLVALUE(t.getValue()))
+            {
+                arglist = Py_BuildValue("(bslb)", false, "", t.getValue(), true);
+            } else if (IS_UINT(t.getValue())) {
+                auto intValue = GET_UINT(t.getValue());
+                arglist = Py_BuildValue("(bslb)", false, std::to_string(intValue).c_str(), intValue, false);
+            } else if (IS_FLOAT32(t.getValue())) {
+                auto rawValue = t.getValue();
+                auto floatValue = GET_FLOAT32(rawValue);
+                arglist = Py_BuildValue("(bsfb)", false, std::to_string(floatValue).c_str(), floatValue, false);
+            } else {
+                //Get the textual term
+                std::string text = layer->getDictText(t.getValue());
+                arglist = Py_BuildValue("(bslb)", false, text.c_str(), t.getValue(), false);
+            }
         }
         auto a = PyObject_CallObject(termClass, arglist);
         Py_INCREF(a);
